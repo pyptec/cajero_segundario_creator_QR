@@ -1,0 +1,154 @@
+C51 COMPILER V9.59.0.0   PTOPRLELO                                                         03/02/2020 12:27:56 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE PTOPRLELO
+OBJECT MODULE PLACED IN .\hex\ptoprlelo.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ptoprlelo.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Sec_Creator LPR Ren
+                    -ewM CtrlLuz) DEBUG OBJECTEXTEND TABS(2) OBJECT(.\hex\ptoprlelo.obj)
+
+line level    source
+
+   1          #include <ptoprlelo.h> 
+   2          #include <reg51.h>
+   3          
+   4          sbit rx_in_data = P0^6;       //Indicador de Rx Transporte o Lectura Wiegand    
+   5          sbit port_clk = P3^4;       //Recepcion AUX                     *
+   6          sbit busy = P3^3;           //Entrada Interrupcion del Procesador principal     *
+   7          sbit ready = P3^2;          //Salida. solicitud envio Datos             *
+   8          
+   9          
+  10          extern unsigned char xdata buffer_ticket[];
+  11          extern unsigned char num_data;
+  12          extern bit timeOut;
+  13          /*----------------------------------------------------------------------------------------------------
+  14              RECIBE INFORMACION DEL PROCESADOR PRINCIPAL POR P2      
+  15          -----------------------------------------------------------------------------------------------------*/
+  16          /*
+  17          bit Send_Port(unsigned char NumChar)
+  18          {
+  19              unsigned char j; 
+  20            long int cont;
+  21            
+  22            port_clk=1;             //El que transmite debe fijar primero el Clk en 1
+  23            rx_in_data=0;           //Led de visualizacion  ON
+  24            timeOut=0;
+  25            ready=0;              //Genera interrupcion al Principal
+  26            cont=50000;
+  27            while ((busy==1)&&(timeOut==0))   //Espera reconocimiento INT por entrada busy
+  28            {
+  29              cont--;
+  30              if (cont==0)
+  31              {
+  32                timeOut=1;
+  33              }
+  34            }
+  35            if ((timeOut==0)&&(busy==0))
+  36            {
+  37              for (j=0; j<NumChar; j++)
+  38              {
+  39                P2=buffer_ticket[j];
+  40                port_clk=0;
+  41                wait_long();
+  42                port_clk=1;
+  43                wait_long();
+  44              }
+  45            }
+  46            ready=1;
+  47            port_clk=1;
+  48            rx_in_data=1;         //Led de visualizacion  OFF
+  49              
+  50          
+  51            return timeOut;
+  52          }
+  53          */ 
+  54          //***************************************************************************************************
+C51 COMPILER V9.59.0.0   PTOPRLELO                                                         03/02/2020 12:27:56 PAGE 2   
+
+  55          void wait (void)  {                         
+  56   1        ;                                         
+  57   1      }
+  58          //***************************************************************************************************
+  59          void wait_long (void)  {                        
+  60   1          unsigned int j;
+  61   1        for (j=0; j<45; j++)    //4550
+  62   1        {
+  63   2          wait();
+  64   2        }   
+  65   1      } 
+  66          
+  67          //********************************************************************************************************
+             -***
+  68          //    RECIBE INFORMACION DEL PROCESADOR PRINCIPAL POR P2                          *
+  69          //********************************************************************************************************
+             -***
+  70          void recibe_port(void)
+  71          {
+  72   1      
+  73   1        unsigned int count;
+  74   1        unsigned char time_out,j;
+  75   1      
+  76   1        num_data=0;
+  77   1        
+  78   1      //------------------------------------------// BORRA BUFFER
+  79   1        for (j=0; j<60; j++)
+  80   1        {
+  81   2          buffer_ticket[j]=0xff;  
+  82   2        }
+  83   1      //------------------------------------------  
+  84   1        
+  85   1        if (busy==0)
+  86   1        {
+  87   2            rx_in_data=0;
+  88   2          time_out=0;
+  89   2          ready=0;
+  90   2          j=0;  
+  91   2          for (j=0; j<30; j++)
+  92   2          {
+  93   3            while ((port_clk==1)&&(busy==0))
+  94   3            {
+  95   4            
+  96   4            }
+  97   3            buffer_ticket[j]=P2;   
+  98   3            if ((port_clk==0)&&(time_out==0)&&(busy==0))
+  99   3            {
+ 100   4              buffer_ticket[j]=P2;
+ 101   4              num_data++; 
+ 102   4              count=0;
+ 103   4              while ((port_clk==0)&&(time_out==0))
+ 104   4              {
+ 105   5                count++;
+ 106   5                if (count>30000)     //65000
+ 107   5                {
+ 108   6                  time_out=1;
+ 109   6                  j=31;
+ 110   6                }       
+ 111   5              }
+ 112   4            }
+ 113   3            if (busy==1)
+ 114   3            {
+C51 COMPILER V9.59.0.0   PTOPRLELO                                                         03/02/2020 12:27:56 PAGE 3   
+
+ 115   4              j=31;
+ 116   4            }
+ 117   3            ready=1;
+ 118   3           }
+ 119   2          rx_in_data=1;
+ 120   2        }
+ 121   1        ready=1;
+ 122   1        P2=0xff;
+ 123   1      
+ 124   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    165    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

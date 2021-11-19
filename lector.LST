@@ -1,0 +1,2829 @@
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE LECTOR
+OBJECT MODULE PLACED IN .\hex\lector.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE lector.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Sec_Creator LPR RenewM
+                    - CtrlLuz) DEBUG OBJECTEXTEND TABS(2) OBJECT(.\hex\lector.obj)
+
+line level    source
+
+   1          
+   2          #include <lector.h> 
+   3          #include <string.h>
+   4          #include <reg51.h>
+   5          
+   6          
+   7          sbit lock = P1^7;         //Relevo    
+   8          sbit busy = P3^3;           //Entrada Interrupcion del Procesador principal     *
+   9          sbit ready = P3^2;          //Salida. solicitud envio Datos   
+  10          sbit port_clk = P3^4;       //Recepcion AUX     
+  11          sbit rx_in_data = P0^6;       //Indicador de Rx Transporte o Lectura Wiegand      *
+  12          sbit sel_com = P0^7;        //Micro switch  
+  13          //------------------------------------------------------------------------------------------*
+  14          #define SEQ_INICIO        0X00  
+  15          #define SEQ_TEMPORAL      0X01
+  16          #define SEQ_ESPERA        0X02
+  17          #define SEQ_RTA_STATUS      0X03
+  18          #define SEQ_RTA_EJECT     0X04
+  19          #define SEQ_RTA_LOADKEY     0x05
+  20          #define SEQ_RTA_SELECT      0x06
+  21          #define SEQ_LOCK        0x07
+  22          #define SEQ_RTA_rdB5      0x08
+  23          #define SEQ_RTA_rdB6      0x09
+  24          #define SEQ_RTA_rdB4      0x0a
+  25          //#define SEQ_RTA_wrB6      0x0b
+  26          #define SEQ_WCMD        0x0C
+  27          #define SEQ_RTA_RST       0x0d
+  28          
+  29          #define SEQ_RTA_STATUS2     0X0f
+  30          #define SEQ_RTA_WR        0X10
+  31          
+  32          
+  33          #define SEQ_RTA_KEY2      0x19
+  34          #define SEQ_RTA_STATUSout   0x1e
+  35          #define SEQ_WAIT_EJECT      0x1F
+  36          #define SEQ_SEL_B6w       0x20
+  37          
+  38          #define SEQ_STATUS_OUT      0x24
+  39          #define SEQ_RETRY       0x25
+  40          
+  41          #define SEQ_RETRY_ANTENA_OFF  0x26
+  42          #define SEQ_RETRY_KEY     0x27
+  43          
+  44          #define SEQ_RETRY_CARD_INSIDE 0X2D
+  45          #define SEQ_RTA_STATUS_WR_B6  0X2E
+  46          
+  47          #define SEQ_RTA_LOADKEY2    0x2f
+  48          
+  49          #define SEQ_LPR         0x31
+  50          
+  51          #define SEQ_RTA_SELECT2     0x32
+  52          #define SEQ_RTA_STATUS_WR_B5  0X33
+  53          #define SEQ_LEE_ID_BACKUP   0x34
+  54          #define SEQ_BRTA_ID_BACKUP   0x35
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 2   
+
+  55          #define SEQ_RTA_STATUS_WR_B7  0x36
+  56          #define SEQ_RTA_WR_2          0x37
+  57          #define SEQ_RETRY_KEY_2       0x38
+  58          #define SEQ_RTA_rdB4_Comercio 0x39
+  59          //estado de la lectura QR
+  60          #define SEQ_QR_WAIT           0x3a
+  61          #define SEQ_QR_INICIO         0x3b  
+  62          #define SEQ_QR_PTPRL          0x3c
+  63          #define SEQ_QR_WCMD           0x3d
+  64          
+  65          
+  66          //ESTADOR RECEPCION SOFTWARE
+  67          
+  68          #define ESPERA_RX       0
+  69          #define ESPERA_INICIO_RTA   1
+  70          #define RX_CONTADOR_H     2
+  71          #define RX_CONTADOR_L     3
+  72          #define SAVE_STR_SOF      4
+  73          #define RX_BCC          5
+  74          
+  75          #define RX_QR           6
+  76          
+  77          #define T_WAIT    20
+  78          #define TIMConsulta 1200
+  79          #define TIMWPoll  100
+  80          #define   TIME_RX           200   //
+  81          #define CTE_SEG 0X1C        
+  82          
+  83          #define STX 0x02
+  84          #define ETX 0x03
+  85          #define CR  0x0d
+  86          #define LF  0x0a
+  87          #define ACK 0x06
+  88          
+  89          
+  90          #define SIN_ERROR   0x30    // NO ERROR
+  91          #define ERR_AUTH    0x31    // ERROR AUTHENTICATION
+  92          #define ERR_RD      0x32    // NO SE PUDO LEER INFO
+  93          #define ERR_WR      0x33    //
+  94          #define ERR_EEPROMK   0x34    // ERROR AL GRABAR EN LECTOR
+  95          #define ERR_LECTOR    0x35    // RESPUESTA INCORRECTA DEL LECTOR
+  96          #define ERR_EJECT   0x36    // ERROR EN EXPULSAR
+  97          #define ERR_APB     0x37    // NO POSEE INGRESO
+  98          #define ERR_COD     0x38    // TARJETA NO ES DE ESTE PARQUEADERO
+  99          #define DESARM      0x39    // CAJERO DESARMADO / NO PUEDE LIQUIDAR TARJETA DE ROTACION
+ 100          #define ROTACION    0x3A      // TARJETA DE ROTACION
+ 101          #define ERR_CARD_TIPO 0X3B      // ERROR TIPO DE TARJETA (STATUS)
+ 102          #define ERR_COM     0X3c      // ERROR TIPO DE TARJETA (STATUS)
+ 103          #define CARD_EJECT    0X3D      // ERROR TIPO DE TARJETA (STATUS)
+ 104          #define CARD_EJECT_WR 0X3E      // ERROR TIPO DE TARJETA (STATUS)
+ 105          #define ERR_SELECT    0X3F      // ERROR TIPO DE TARJETA (STATUS)
+ 106          #define ERR_NO_CARD   0X40      // ERROR NO HAY TARJETA PRESENTE
+ 107          #define ERR_TIME_OUT  0X41      // ERROR NO HAY TARJETA PRESENTE
+ 108          
+ 109          #define CARD_INACTIVA   0x00
+ 110          #define CARD_ROTACION     0x01
+ 111          #define CARD_MENSUALIDAD  0x02
+ 112          #define CARD_LOCATARIO    0x05
+ 113          #define CARD_MULTIPLE   0x0F
+ 114          #define CARD_COMPARTIDA   0x0A
+ 115          #define CARD_COMPRA_DCTO  0x0c
+ 116          #define EMITIDA_PERDIDA   0X10
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 3   
+
+ 117          
+ 118          //ERRORES
+ 119          #define SELECCION_SECTOR    0
+ 120          #define COMANDO_WR        1
+ 121          #define NO_RTA_WR       2
+ 122          #define COMANDO_RD        3
+ 123          #define NO_RTA_RD       4
+ 124          #define FALLA_WR        5
+ 125          #define NO_CARD         6
+ 126          
+ 127          extern unsigned char g_cEstadoComSoft;
+ 128          extern unsigned int ValTimeOutCom;
+ 129          extern unsigned char g_cEstadoComSeqMF;
+ 130          extern unsigned char g_scArrRxComSoft[];
+ 131          extern unsigned char ID1,ID2,ID3,ID4; 
+ 132          extern unsigned char centena, decena, unidad;
+ 133          extern unsigned char TipoCard;
+ 134          extern unsigned char COD_PARK_R;
+ 135          extern unsigned char ID_CLIENTE_R;
+ 136          extern unsigned char xdata buffer_ticket[];
+ 137          extern  unsigned char xdata sector6[];
+ 138          extern  unsigned char xdata sector5[];
+ 139          extern unsigned char Block;
+ 140          extern const unsigned char ID_CLIENTE;    //          
+ 141          extern const unsigned char  COD_PARK;
+ 142          extern unsigned char  num_data;
+ 143          extern unsigned char xdata g_scDATE[];
+ 144          extern unsigned char Cod_Dcto;
+ 145          extern unsigned char TipoVeh;
+ 146          extern unsigned char Val_Horario;
+ 147          extern unsigned char Val_PicoPlaca;
+ 148          extern unsigned char ValDCTO_INPAGO;
+ 149          extern unsigned char APB_CARD;
+ 150          extern unsigned char g_scDATE_Liq[];
+ 151          extern unsigned char TIME_ESPERA;
+ 152          extern unsigned char NumLiq;
+ 153          extern  unsigned year, month, day, hour, minut;
+ 154          extern  unsigned char BufferWrite_MF[];
+ 155          extern unsigned char RetryWrite_MF[];
+ 156          extern unsigned char RetryWR;
+ 157          
+ 158          extern unsigned char g_cContByteRx;
+ 159          
+ 160          
+ 161          
+ 162          extern bit buffer_ready;
+ 163          extern bit Desarmado;
+ 164          extern bit Permite_Puerta;
+ 165          extern bit Permite_Monedero;
+ 166          extern bit Permite_Billetero;
+ 167          extern bit FueraServicio;
+ 168          extern  bit EmisionXperdida;
+ 169          extern bit GrabaTarjeta;
+ 170          extern bit MultiPark;
+ 171          extern bit timeOut;
+ 172          extern bit PrintLPR;
+ 173          extern bit NotifyCofreB2B;
+ 174          extern bit NotifyCofreCoin;
+ 175          extern  bit NotifyPuerta;
+ 176          extern bit AlarmaPrevia1;
+ 177          extern bit AlarmaPrevia2;
+ 178          extern bit AlarmaPrevia3;
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 4   
+
+ 179          extern bit alarma1;
+ 180          extern bit alarma2;
+ 181          extern bit alarma3;
+ 182          extern bit onceAlarm;
+ 183          extern bit ConsultaSoft;
+ 184          extern bit Expulsa_Grabacion;
+ 185          extern bit Comparacion;
+ 186          
+ 187          extern const bit PuertoMF;
+ 188          extern const bit PuertoDB9;
+ 189          extern bit esQR;
+ 190          
+ 191          extern void Get_Status(void)  ;
+ 192          extern void Debug_txt_Tibbo(unsigned char * str);
+ 193          extern void Select_Card(void);
+ 194          extern void tx_aux(unsigned char caracter);
+ 195          extern void Ve_Hex(unsigned char valorhex);
+ 196          
+ 197          extern void LoadPass(void);
+ 198          extern void LoadPass2(void)  ;
+ 199          extern void Lea_S1_Block(unsigned char Bloque)   ;
+ 200          extern void Select_S2_Block(unsigned char Bloque) ;
+ 201          extern void Graba_S1_BloqueSel(unsigned char Bloque)  ;
+ 202          extern void eject_card ();
+ 203          extern void Eject_Card(unsigned char CodError);
+ 204          extern bit Send_Port(unsigned char NumChar);
+ 205          extern void tx_auxH(unsigned char caracter);
+ 206          extern void Hex_Str(unsigned char valorhex);
+ 207          extern unsigned char two_one (unsigned char byte_h,unsigned char byte_l);
+ 208          extern void posee_in_out();
+ 209          extern void ve_id(unsigned char id_h,unsigned char id_l);
+ 210          extern void Debug_Dividir_texto();
+ 211          extern void recibe_port(void);
+ 212          extern unsigned char bcd_hex (unsigned char l_data);
+ 213          extern void ErrorWR(unsigned char TipoERR);
+ 214          extern void Info_Retry(void);
+ 215          extern void wait_long (void);
+ 216          extern void DebugBufferMF(unsigned char *str,unsigned char num_char);
+ 217          extern unsigned char num_num(unsigned char * p);  
+ 218          extern unsigned char num_char(unsigned char * p,unsigned char chr); 
+ 219          //********************************************************************************************************
+             -***********************
+ 220          
+ 221          /*----------------------------------------------------------------------------------------------------
+ 222              RECIBE INFORMACION DEL PROCESADOR PRINCIPAL POR P2      
+ 223          -----------------------------------------------------------------------------------------------------*/
+ 224          
+ 225          bit Send_Port(unsigned char NumChar)
+ 226          {
+ 227   1          unsigned char j; 
+ 228   1        long int cont;
+ 229   1        
+ 230   1        port_clk=1;             //El que transmite debe fijar primero el Clk en 1
+ 231   1        rx_in_data=0;           //Led de visualizacion  ON
+ 232   1        timeOut=0;
+ 233   1        ready=0;              //Genera interrupcion al Principal
+ 234   1        cont=50000;
+ 235   1        while ((busy==1)&&(timeOut==0))   //Espera reconocimiento INT por entrada busy
+ 236   1        {
+ 237   2          cont--;
+ 238   2          if (cont==0)
+ 239   2          {
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 5   
+
+ 240   3            timeOut=1;
+ 241   3          }
+ 242   2        }
+ 243   1        if ((timeOut==0)&&(busy==0))
+ 244   1        {
+ 245   2          for (j=0; j<NumChar; j++)
+ 246   2          {
+ 247   3            P2=buffer_ticket[j];
+ 248   3            port_clk=0;
+ 249   3            wait_long();
+ 250   3            port_clk=1;
+ 251   3            wait_long();
+ 252   3          }
+ 253   2        }
+ 254   1        P2=0XFF;
+ 255   1        ready=1;
+ 256   1        port_clk=1;
+ 257   1        rx_in_data=1;         //Led de visualizacion  OFF
+ 258   1        wait_long();  
+ 259   1      
+ 260   1        return timeOut;
+ 261   1      }
+ 262          void ProcesoLector(void)
+ 263          {
+ 264   1       
+ 265   1          unsigned char j;
+ 266   1          unsigned char temp,temp2;
+ 267   1        unsigned char *tipo_vehiculo;
+ 268   1          static unsigned char BID1=0,BID2=0,BID3=0,BID4=0,vehiculo,contador_QR=0;
+ 269   1          static unsigned char Ticket[10];
+ 270   1        static unsigned char  fecha[17]; 
+ 271   1          switch (g_cEstadoComSeqMF)
+ 272   1          {
+ 273   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 274   2            case SEQ_INICIO:                  /*tiempo de espera*/
+ 275   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+ 276   2              {
+ 277   3                g_cEstadoComSeqMF=SEQ_ESPERA;
+ 278   3                g_cEstadoComSoft=ESPERA_RX;
+ 279   3                ValTimeOutCom=T_WAIT;
+ 280   3                buffer_ready=0;
+ 281   3              }
+ 282   2            break;
+ 283   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 284   2            case SEQ_ESPERA:
+ 285   2      
+ 286   2              if (ValTimeOutCom==1)
+ 287   2              {
+ 288   3                g_cEstadoComSeqMF=SEQ_RTA_STATUS;
+ 289   3                  Get_Status();                       /*pregunta por el estado del lector*/
+ 290   3              }
+ 291   2      
+ 292   2            break;
+ 293   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 294   2            case SEQ_RTA_STATUS:
+ 295   2            
+ 296   2              if (buffer_ready==1)
+ 297   2              {
+ 298   3                buffer_ready=0;
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 6   
+
+ 299   3                if (g_scArrRxComSoft[5]=='Y')                       /*tenemos presencia de tarjeta en la antena*/
+ 300   3                {
+ 301   4                  Debug_txt_Tibbo((unsigned char *) "TARJETA LOCK\r\n");
+ 302   4                  Select_Card();                                    /*consulto el numero de la serie de la tarjeta*/
+ 303   4                  g_cEstadoComSeqMF=SEQ_RTA_SELECT;
+ 304   4                  Debug_txt_Tibbo(g_scArrRxComSoft);
+ 305   4                }
+ 306   3                else
+ 307   3                {
+ 308   4                  //g_cEstadoComSeqMF=SEQ_ESPERA;                     /*no hay tarjeta probamos si hay QR*/
+ 309   4                  //g_cEstadoComSoft=ESPERA_RX;
+ 310   4                  //  ValTimeOutCom=T_WAIT;
+ 311   4                  Debug_txt_Tibbo(g_scArrRxComSoft);          
+ 312   4                  sel_com=PuertoMF; 
+ 313   4                  esQR= 1;          
+ 314   4                  g_cEstadoComSeqMF=SEQ_QR_WAIT;                      /*no hay tarjeta probamos si hay QR*/
+ 315   4                  g_cEstadoComSoft=RX_QR;
+ 316   4                  ValTimeOutCom=T_WAIT;                                 /*TIME_RX;*/
+ 317   4                }
+ 318   3              }
+ 319   2              else if (ValTimeOutCom==1)
+ 320   2              { 
+ 321   3                esQR= 0;  
+ 322   3                sel_com=PuertoDB9;
+ 323   3                g_cEstadoComSeqMF=SEQ_ESPERA;
+ 324   3                g_cEstadoComSoft=ESPERA_RX;
+ 325   3                ValTimeOutCom=T_WAIT;
+ 326   3              }
+ 327   2      
+ 328   2      
+ 329   2            break;
+ 330   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 331   2            case SEQ_RTA_SELECT:
+ 332   2              if (buffer_ready==1)
+ 333   2              {
+ 334   3                buffer_ready=0;
+ 335   3                if (g_scArrRxComSoft[5]=='Y')
+ 336   3                {
+ 337   4                  /*Y= tiene el numero de la tarjeta
+ 338   4                    N= fallo el numero de tarjeta
+ 339   4                    E= no hay tarjeta
+ 340   4                  */
+ 341   4                  ID1=g_scArrRxComSoft[6];                      /*numero de serie de la tarjeta enviado a tcp/ip*/
+ 342   4                  ID2=g_scArrRxComSoft[7];
+ 343   4                  ID3=g_scArrRxComSoft[8];
+ 344   4                  ID4=g_scArrRxComSoft[9];
+ 345   4      
+ 346   4                  tx_aux('C');
+ 347   4                  tx_aux('A');
+ 348   4                  tx_aux('R');
+ 349   4                  tx_aux('D');
+ 350   4                  tx_aux(':');
+ 351   4                  tx_aux(' ');
+ 352   4      
+ 353   4                  Ve_Hex(g_scArrRxComSoft[6]);      // 
+ 354   4                  tx_aux(decena);
+ 355   4                  tx_aux(unidad);
+ 356   4                  tx_aux(' ');
+ 357   4                  
+ 358   4                  Ve_Hex(g_scArrRxComSoft[7]);      // 
+ 359   4                  tx_aux(decena);
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 7   
+
+ 360   4                  tx_aux(unidad);
+ 361   4                  tx_aux(' ');            
+ 362   4      
+ 363   4                  Ve_Hex(g_scArrRxComSoft[8]);      // 
+ 364   4                  tx_aux(decena);
+ 365   4                  tx_aux(unidad);
+ 366   4                  tx_aux(' ');
+ 367   4      
+ 368   4                  Ve_Hex(g_scArrRxComSoft[9]);      // 
+ 369   4                  tx_aux(decena);
+ 370   4                  tx_aux(unidad);
+ 371   4                    tx_aux(' ');
+ 372   4      
+ 373   4                  tx_aux(CR);
+ 374   4                  tx_aux(LF);                           
+ 375   4                  
+ 376   4                  LoadPass();                                     /*envia el password al lector */
+ 377   4                  g_cEstadoComSeqMF=SEQ_RTA_LOADKEY;
+ 378   4                  buffer_ready=0;           
+ 379   4                              
+ 380   4                }
+ 381   3                else
+ 382   3                {
+ 383   4                  Debug_txt_Tibbo((unsigned char *) "ERROR CARD\r\n");
+ 384   4                    
+ 385   4                  Eject_Card(ERR_SELECT);;
+ 386   4                }
+ 387   3       
+ 388   3              }
+ 389   2              else if (ValTimeOutCom==1)
+ 390   2              {
+ 391   3                Debug_txt_Tibbo((unsigned char *) "SIN RTA. SELECT\r\n");
+ 392   3                Eject_Card(ERR_RD);
+ 393   3      
+ 394   3              }
+ 395   2      
+ 396   2            break;
+ 397   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 398   2            case SEQ_RTA_LOADKEY:
+ 399   2      
+ 400   2              if (buffer_ready==1)
+ 401   2              {
+ 402   3                buffer_ready=0;
+ 403   3                if (g_scArrRxComSoft[6]=='Y')         /*password ok*/
+ 404   3                {
+ 405   4                  /*ok password*/
+ 406   4                  Lea_S1_Block(1);                    /*leo el bloque 1 de la tarjeta MF50*/
+ 407   4                  g_cEstadoComSeqMF=SEQ_RTA_rdB5;
+ 408   4                            
+ 409   4                }
+ 410   3                else
+ 411   3                {
+ 412   4                  Debug_txt_Tibbo((unsigned char *) "ERROR KEY\r\n");
+ 413   4                  Eject_Card(ERR_AUTH);
+ 414   4                }
+ 415   3      
+ 416   3      
+ 417   3                }
+ 418   2              else if (ValTimeOutCom==1)
+ 419   2              {
+ 420   3                Debug_txt_Tibbo((unsigned char *) "SIN RTA. KEY\r\n");
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 8   
+
+ 421   3                Eject_Card(ERR_AUTH);
+ 422   3      
+ 423   3              }
+ 424   2      
+ 425   2             break;
+ 426   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 427   2             case SEQ_TEMPORAL:
+ 428   2      
+ 429   2              lock=1;
+ 430   2      
+ 431   2              break;
+ 432   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 433   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 434   2            case SEQ_RTA_rdB5:
+ 435   2      /*tengo los datos de la tarjeta sector y bloque 16 byte*/
+ 436   2              if (buffer_ready==1)
+ 437   2              {
+ 438   3                buffer_ready=0;
+ 439   3                if (g_scArrRxComSoft[7]=='Y')         /*lectura ok del bloque 1*/
+ 440   3                {
+ 441   4                  //g_scArrRxComSoft[g_cContByteRx]=0;
+ 442   4                MultiPark=1;
+ 443   4                  Debug_Dividir_texto() ;       
+ 444   4                  Debug_txt_Tibbo((unsigned char *) "\r\ntrama del lector tarjetas\r\n");             /*la respuesta es desc
+             -onocida*/
+ 445   4                  DebugBufferMF(g_scArrRxComSoft,g_cContByteRx);                                                          /*imprimo la trama recibi
+             -da*/
+ 446   4                  Debug_txt_Tibbo((unsigned char *) "\r\n");
+ 447   4                  Debug_Dividir_texto() ; 
+ 448   4                  
+ 449   4                  Debug_txt_Tibbo((unsigned char *) "tipo de tarjeta:");
+ 450   4                  TipoCard=g_scArrRxComSoft[8];
+ 451   4                  Ve_Hex(TipoCard);
+ 452   4                    tx_aux(decena);
+ 453   4                    tx_aux(unidad);
+ 454   4                    tx_aux(' ');
+ 455   4                    tx_aux(CR);
+ 456   4                    tx_aux(LF); 
+ 457   4                  Debug_Dividir_texto() ; 
+ 458   4                  Debug_txt_Tibbo((unsigned char *) "ID_CLIENTE_R:");
+ 459   4                  ID_CLIENTE_R=g_scArrRxComSoft[9];
+ 460   4                  Ve_Hex(ID_CLIENTE_R);
+ 461   4                    tx_aux(decena);
+ 462   4                    tx_aux(unidad);
+ 463   4                    tx_aux(' ');
+ 464   4                    tx_aux(CR);
+ 465   4                    tx_aux(LF); 
+ 466   4                    Debug_Dividir_texto() ; 
+ 467   4                    Debug_txt_Tibbo((unsigned char *) "ID_CLIENTE:");
+ 468   4                    tx_auxH(ID_CLIENTE);
+ 469   4                    Debug_txt_Tibbo((unsigned char *) "\r\n");
+ 470   4                    Debug_Dividir_texto() ; 
+ 471   4                  
+ 472   4              
+ 473   4                  Debug_txt_Tibbo((unsigned char *) "COD_PARK_R:");
+ 474   4                  COD_PARK_R=g_scArrRxComSoft[11];
+ 475   4                  Ve_Hex(COD_PARK_R);
+ 476   4                    tx_aux(decena);
+ 477   4                    tx_aux(unidad);
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 9   
+
+ 478   4                    tx_aux(' ');                    
+ 479   4      
+ 480   4                  tx_aux(CR);
+ 481   4                  tx_aux(LF);           
+ 482   4                  
+ 483   4                    Debug_Dividir_texto() ; 
+ 484   4                    Debug_txt_Tibbo((unsigned char *) "COD_PARK:");
+ 485   4                    tx_auxH(COD_PARK);
+ 486   4                    Debug_txt_Tibbo((unsigned char *) "\r\n");
+ 487   4                    Debug_Dividir_texto() ; 
+ 488   4                  for (j=0; j<16; j++)                    // GUARDO SECTOR 5 (STATUS CARD, COD PARK. ID PÁRK, FECHA VENCINIENTO
+             - MENSUAL)
+ 489   4                  {
+ 490   5                    sector5[j]=g_scArrRxComSoft[8+j];
+ 491   5                    Ve_Hex(g_scArrRxComSoft[8+j]);            // 
+ 492   5                    tx_aux(decena);
+ 493   5                    tx_aux(unidad);
+ 494   5                    tx_aux(' ');
+ 495   5                  }
+ 496   4                  tx_aux(CR);
+ 497   4                  tx_aux(LF); 
+ 498   4                  
+ 499   4                  if (((ID_CLIENTE_R==ID_CLIENTE)&&(MultiPark==1))||((ID_CLIENTE_R==ID_CLIENTE)&&(COD_PARK_R==COD_PARK
+             -))||((ID_CLIENTE==0)&&(COD_PARK==0)))
+ 500   4                  {
+ 501   5                    if ((TipoCard==CARD_ROTACION)||(TipoCard==EMITIDA_PERDIDA)||(TipoCard==CARD_MENSUALIDAD)||(TipoCard
+             -==CARD_LOCATARIO))
+ 502   5                    {
+ 503   6                      if ((Desarmado==0)&&(FueraServicio==0))
+ 504   6                      {
+ 505   7                        if (TipoCard==EMITIDA_PERDIDA)
+ 506   7                        {
+ 507   8                          EmisionXperdida=1;
+ 508   8                        }
+ 509   7                        else
+ 510   7                        {
+ 511   8                          EmisionXperdida=0;
+ 512   8                        }
+ 513   7                        g_cEstadoComSeqMF=SEQ_RTA_rdB6;
+ 514   7                        g_scArrRxComSoft[7]=0xff;
+ 515   7                        buffer_ready=0;
+ 516   7      
+ 517   7                        Block=2;
+ 518   7                        Lea_S1_Block(Block);            /*se leee el bloque 2 de la tarjeta MF50*/
+ 519   7      
+ 520   7                      }
+ 521   6                      else
+ 522   6                      {
+ 523   7                        Debug_txt_Tibbo((unsigned char *) "EN MTO. EJECT\r\n");
+ 524   7                        
+ 525   7                        Eject_Card(DESARM);           // Notifica que esta en Mantenimiento. No acepta tarjetas de rotacion
+ 526   7                      }
+ 527   6      
+ 528   6                    }
+ 529   5      
+ 530   5                    else if (TipoCard==0x06)            // Tarjeta Servicio Operador
+ 531   5                    {
+ 532   6      
+ 533   6                        if ((Desarmado==0)&&(GrabaTarjeta==0))
+ 534   6                      {
+ 535   7                        GrabaTarjeta=0;
+ 536   7                        Permite_Puerta=1;
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 10  
+
+ 537   7                        Permite_Billetero=0;
+ 538   7                        Permite_Monedero=0;
+ 539   7                        Desarmado=1;
+ 540   7                      }
+ 541   6      
+ 542   6                      buffer_ticket[0]=STX;               // Inicio de transmision
+ 543   6                      buffer_ticket[1]='0';               // Dir 0
+ 544   6                      buffer_ticket[2]=11;                // Dir 0
+ 545   6                      buffer_ticket[3]='T';               // CMD T=Tarjeta Operativa
+ 546   6                        buffer_ticket[4]=':';               // CMD L=lectura
+ 547   6                      buffer_ticket[5]='1';               // 1: Operador
+ 548   6                      buffer_ticket[6]=ID1;
+ 549   6                      buffer_ticket[7]=ID2;
+ 550   6                      buffer_ticket[8]=ID3;
+ 551   6                      buffer_ticket[9]=ID4;
+ 552   6                      buffer_ticket[10]=ETX;                // Fin de trasmision
+ 553   6                      Send_Port(11);                    // ENVIA AL PRINCIPAL
+ 554   6                      g_cEstadoComSeqMF=SEQ_WCMD;
+ 555   6                      g_cEstadoComSoft=ESPERA_RX;
+ 556   6                      ValTimeOutCom=TIMConsulta;
+ 557   6      
+ 558   6                    }
+ 559   5                    else if (TipoCard==0x07)                // Tarjeta Servicio Auditor
+ 560   5                    {
+ 561   6      
+ 562   6                      if((Desarmado==0)&&(GrabaTarjeta==0))
+ 563   6                      {
+ 564   7                        GrabaTarjeta=0;
+ 565   7                        Permite_Puerta=0;
+ 566   7                        Permite_Billetero=0;
+ 567   7                        Permite_Monedero=0;
+ 568   7                          Desarmado=1;
+ 569   7                      }
+ 570   6                      buffer_ticket[0]=STX;               // Inicio de transmision
+ 571   6                      buffer_ticket[1]='0';               // Dir 0
+ 572   6                      buffer_ticket[2]=11;                // Dir 0
+ 573   6                      buffer_ticket[3]='T';               // CMD L=lectura
+ 574   6                        buffer_ticket[4]=':';               // CMD L=lectura
+ 575   6                      buffer_ticket[5]='2';               // 2: Auditor
+ 576   6                      buffer_ticket[6]=ID1;
+ 577   6                      buffer_ticket[7]=ID2;
+ 578   6                      buffer_ticket[8]=ID3;
+ 579   6                      buffer_ticket[9]=ID4;
+ 580   6                      buffer_ticket[10]=ETX;                // Fin de trasmision
+ 581   6                      Send_Port(11);                    // ENVIA AL PRINCIPAL
+ 582   6                      g_cEstadoComSeqMF=SEQ_WCMD;
+ 583   6                      g_cEstadoComSoft=ESPERA_RX;
+ 584   6                      ValTimeOutCom=TIMConsulta;
+ 585   6      
+ 586   6                    }
+ 587   5                    else if (TipoCard==0x08)                  // Tarjeta Servicio Administrador
+ 588   5                    {
+ 589   6                      
+ 590   6                      if ((Desarmado==0)&&(GrabaTarjeta==0))
+ 591   6                      {
+ 592   7                        GrabaTarjeta=0;
+ 593   7                        Permite_Puerta=1;
+ 594   7                        Permite_Billetero=1;
+ 595   7                        Permite_Monedero=1;
+ 596   7                        Desarmado=1;
+ 597   7                      }
+ 598   6      
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 11  
+
+ 599   6                      buffer_ticket[0]=STX;               // Inicio de transmision
+ 600   6                      buffer_ticket[1]='0';               // Dir 0
+ 601   6                      buffer_ticket[2]=11;                // Dir 0
+ 602   6                      buffer_ticket[3]='T';               // CMD L=lectura
+ 603   6                        buffer_ticket[4]=':';               // CMD L=lectura
+ 604   6                      buffer_ticket[5]='3';               // 3: admin
+ 605   6                      buffer_ticket[6]=ID1;
+ 606   6                      buffer_ticket[7]=ID2;
+ 607   6                      buffer_ticket[8]=ID3;
+ 608   6                      buffer_ticket[9]=ID4;
+ 609   6                      buffer_ticket[10]=ETX;                // Fin de trasmision
+ 610   6                      Send_Port(11);                    // ENVIA AL PRINCIPAL
+ 611   6                      if  (timeOut==1)
+ 612   6                      {
+ 613   7                        Send_Port(0X07);
+ 614   7                      }
+ 615   6                      g_cEstadoComSeqMF=SEQ_WCMD;
+ 616   6                      g_cEstadoComSoft=ESPERA_RX;
+ 617   6                      ValTimeOutCom=TIMConsulta;
+ 618   6      
+ 619   6                    }
+ 620   5                      
+ 621   5                    else if ((TipoCard==0xAA)&&(GrabaTarjeta==0))     //&&(Desarmado==0))   // // Tarjeta Servicio Auditor
+ 622   5                    {
+ 623   6      
+ 624   6                      Permite_Puerta=0;
+ 625   6                      Permite_Billetero=0;
+ 626   6                      Permite_Monedero=0;
+ 627   6                      Desarmado=0;
+ 628   6                      GrabaTarjeta=1;
+ 629   6                      buffer_ticket[0]=STX;               // Inicio de transmision
+ 630   6                      buffer_ticket[1]='0';               // Dir 0
+ 631   6                      buffer_ticket[2]=11;                // Dir 0
+ 632   6                      buffer_ticket[3]='T';               // CMD L=lectura
+ 633   6                      buffer_ticket[4]=':';               // CMD L=lectura
+ 634   6                      buffer_ticket[5]='0';               // 2: Auditor
+ 635   6                      buffer_ticket[6]=ID1;
+ 636   6                      buffer_ticket[7]=ID2;
+ 637   6                      buffer_ticket[8]=ID3;
+ 638   6                      buffer_ticket[9]=ID4;
+ 639   6                      buffer_ticket[10]=ETX;                // Fin de trasmision
+ 640   6                      Send_Port(11);                    // ENVIA AL PRINCIPAL
+ 641   6                      g_cEstadoComSeqMF=SEQ_WCMD;
+ 642   6                      g_cEstadoComSoft=ESPERA_RX;
+ 643   6                      ValTimeOutCom=TIMConsulta;
+ 644   6                    }
+ 645   5                    else if ((TipoCard==CARD_COMPRA_DCTO)&&(GrabaTarjeta==0))     //&&(Desarmado==0))   // // Tarjeta Serv
+             -icio Auditor
+ 646   5                    {
+ 647   6      
+ 648   6                      if ((Desarmado==0)&&(FueraServicio==0))
+ 649   6                      {
+ 650   7                        Debug_txt_Tibbo((unsigned char *) "CARD_COMPRA_DCTO\r\n");
+ 651   7                        Permite_Puerta=0;
+ 652   7                        Permite_Billetero=0;
+ 653   7                        Permite_Monedero=0;
+ 654   7                        Desarmado=0;
+ 655   7                        GrabaTarjeta=0;
+ 656   7                        buffer_ticket[0]=STX;               // Inicio de transmision
+ 657   7                        buffer_ticket[1]='0';               // Dir 0
+ 658   7                        buffer_ticket[2]=11;                // Dir 0
+ 659   7                        buffer_ticket[3]='T';               // CMD L=lectura
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 12  
+
+ 660   7                        buffer_ticket[4]=':';               // CMD L=lectura
+ 661   7                        buffer_ticket[5]='D';               // 2: Auditor
+ 662   7                        buffer_ticket[6]=ID1;
+ 663   7                        buffer_ticket[7]=ID2;
+ 664   7                        buffer_ticket[8]=ID3;
+ 665   7                        buffer_ticket[9]=ID4;
+ 666   7                        buffer_ticket[10]=':';                // Fin de trasmision
+ 667   7                    /*leo el nombre del comercio del descuento*/  
+ 668   7                        Lea_S1_Block(0);                  // Block(4)
+ 669   7                        g_cEstadoComSeqMF=SEQ_RTA_rdB4_Comercio;
+ 670   7                        g_cEstadoComSoft=ESPERA_RX;
+ 671   7                        ValTimeOutCom=TIMConsulta;
+ 672   7                        //Send_Port(11);                    // ENVIA AL PRINCIPAL
+ 673   7                        //g_cEstadoComSeqMF=SEQ_WCMD;
+ 674   7                        //g_cEstadoComSoft=ESPERA_RX;
+ 675   7                        //ValTimeOutCom=TIMConsulta;
+ 676   7        
+ 677   7                      }
+ 678   6                      else
+ 679   6                      {
+ 680   7                        Debug_txt_Tibbo((unsigned char *) "EN MTO. EJECT\r\n");
+ 681   7                        
+ 682   7                        Eject_Card(DESARM);           // Notifica que esta en Mantenimiento. No acepta tarjetas de rotacion
+ 683   7                      }
+ 684   6      
+ 685   6      
+ 686   6      
+ 687   6      
+ 688   6                    }
+ 689   5                    else
+ 690   5                    {
+ 691   6                      
+ 692   6                      Ve_Hex(TipoCard);
+ 693   6                      tx_aux(decena);
+ 694   6                      tx_aux(unidad);
+ 695   6                      tx_aux(' ');
+ 696   6                      Eject_Card(ERR_CARD_TIPO);              // No es tarjeta con STATUS valido
+ 697   6                    }
+ 698   5      
+ 699   5                   }
+ 700   4                  else
+ 701   4                  {
+ 702   5                    //OJO REVISAR
+ 703   5                    Debug_txt_Tibbo((unsigned char *) "ERROR COD. PARK\r\n");
+ 704   5                    Eject_Card(ERR_COD);
+ 705   5                  }
+ 706   4                }
+ 707   3                else
+ 708   3                {
+ 709   4                  Debug_txt_Tibbo((unsigned char *) "SIN RTA. RD B5\r\n");
+ 710   4                  Eject_Card(ERR_RD);
+ 711   4              
+ 712   4                }
+ 713   3            
+ 714   3                }
+ 715   2              else if (ValTimeOutCom==1)
+ 716   2              {
+ 717   3                Debug_txt_Tibbo((unsigned char *) "SIN RTA. RD B5\r\n");
+ 718   3                Eject_Card(ERR_RD);
+ 719   3              }
+ 720   2            break;
+ 721   2      //--------------------------------------------------------------------------------------------------------
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 13  
+
+             -----------------------*
+ 722   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 723   2            case SEQ_RTA_rdB6:
+ 724   2      
+ 725   2              if (buffer_ready==1)
+ 726   2              {
+ 727   3                buffer_ready=0;
+ 728   3                  if (g_scArrRxComSoft[7]=='Y')               /*lectura ok del 2 bloque de la memoria MF50*/
+ 729   3                {
+ 730   4                  Debug_txt_Tibbo((unsigned char *) "RD S6:");
+ 731   4                  
+ 732   4                  
+ 733   4                  for (j=0; j<16; j++)
+ 734   4                  {
+ 735   5                    sector6[j]=g_scArrRxComSoft[8+j];
+ 736   5                    tx_auxH(sector6[j]);        // Envia sector 6 leido
+ 737   5                  }
+ 738   4                  tx_aux(CR);
+ 739   4                  tx_aux(LF);           
+ 740   4                  
+ 741   4                  
+ 742   4                  
+ 743   4                  if (GrabaTarjeta==1)                  //
+ 744   4                  {
+ 745   5      
+ 746   5                    if (g_scArrRxComSoft[18]==0)            //APB inicializado...Solo Acepta tarjetas formateadas
+ 747   5                    {
+ 748   6                      buffer_ticket[0]=STX;             
+ 749   6                      buffer_ticket[1]='0';             
+ 750   6                      buffer_ticket[2]=0x08;            
+ 751   6                      buffer_ticket[3]='U';
+ 752   6                      buffer_ticket[4]=ID1;
+ 753   6                      buffer_ticket[5]=ID2;
+ 754   6                      buffer_ticket[6]=ID3;
+ 755   6                      buffer_ticket[7]=ID4;
+ 756   6                      buffer_ticket[8]=ETX;
+ 757   6                      num_data=9;
+ 758   6                      Send_Port(num_data);
+ 759   6                      g_cEstadoComSeqMF=SEQ_WCMD;
+ 760   6                    
+ 761   6                    }
+ 762   5                    else
+ 763   5                    {
+ 764   6                      Eject_Card(ROTACION);
+ 765   6                    } 
+ 766   5                  }
+ 767   4                  else
+ 768   4                  {
+ 769   5                    if ((g_scArrRxComSoft[18]==1))        // APB 1:Entrada 2:Salida
+ 770   5                    {
+ 771   6                      //posee_in_out();
+ 772   6                      Debug_txt_Tibbo((unsigned char *) "POSEE IN\r\n");
+ 773   6      
+ 774   6                    Hex_Str(g_scArrRxComSoft[8]);       // Año Entrada
+ 775   6                    g_scDATE[0]=decena;
+ 776   6                    g_scDATE[1]=unidad;
+ 777   6                      
+ 778   6                    Hex_Str(g_scArrRxComSoft[9]);       // Mes Entrada
+ 779   6                    g_scDATE[2]=decena;
+ 780   6                    g_scDATE[3]=unidad;
+ 781   6                      
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 14  
+
+ 782   6                    Hex_Str(g_scArrRxComSoft[10]);      // Dia Entrada
+ 783   6                    g_scDATE[4]=decena;
+ 784   6                    g_scDATE[5]=unidad;
+ 785   6                      
+ 786   6                    Hex_Str(g_scArrRxComSoft[11]);      // Hora Entrada
+ 787   6                    g_scDATE[6]=decena;
+ 788   6                    g_scDATE[7]=unidad;
+ 789   6                                    
+ 790   6                    Hex_Str(g_scArrRxComSoft[12]);      // Minuto Entrada
+ 791   6                    g_scDATE[8]=decena;
+ 792   6                    g_scDATE[9]=unidad;
+ 793   6        
+ 794   6                    Cod_Dcto=two_one(g_scArrRxComSoft[15],g_scArrRxComSoft[14]);
+ 795   6                    Cod_Dcto=Cod_Dcto+0x30;
+ 796   6                      
+ 797   6                    Debug_txt_Tibbo((unsigned char *) "DCTO:");
+ 798   6                    tx_aux(Cod_Dcto);
+ 799   6                    tx_aux(CR);
+ 800   6                    tx_aux(LF);
+ 801   6      
+ 802   6      //------------------------------------------------------------------------------------------------
+ 803   6                    TipoVeh=g_scArrRxComSoft[16]&(0x0f);
+ 804   6                    Val_Horario=g_scArrRxComSoft[16]&(0xf0);
+ 805   6                    Val_Horario>>=4;
+ 806   6      //------------------------------------------------------------------------------------------------
+ 807   6                if ((TipoCard==CARD_MENSUALIDAD)||(TipoCard==CARD_COMPARTIDA))
+ 808   6                {
+ 809   7                  Val_PicoPlaca=g_scArrRxComSoft[17]&0xf0;
+ 810   7                  Val_PicoPlaca>>=4;
+ 811   7                  ValDCTO_INPAGO=g_scArrRxComSoft[17]&0x0F;
+ 812   7               }
+ 813   6              else
+ 814   6              {
+ 815   7                ValDCTO_INPAGO=g_scArrRxComSoft[17];
+ 816   7              }
+ 817   6      
+ 818   6                APB_CARD=g_scArrRxComSoft[18];
+ 819   6      //------------------------------------------------------------------------------------------------
+ 820   6              Hex_Str(g_scArrRxComSoft[19]);      // Año Liquidacion + T gracia
+ 821   6              g_scDATE_Liq[0]=decena;
+ 822   6              g_scDATE_Liq[1]=unidad;
+ 823   6                      
+ 824   6              Hex_Str(g_scArrRxComSoft[20]);      // Mes Liquidacion + T gracia
+ 825   6              g_scDATE_Liq[2]=decena;
+ 826   6              g_scDATE_Liq[3]=unidad;
+ 827   6                      
+ 828   6              Hex_Str(g_scArrRxComSoft[21]);      // Dia Liquidacion + T gracia
+ 829   6              g_scDATE_Liq[4]=decena;
+ 830   6              g_scDATE_Liq[5]=unidad;
+ 831   6                    
+ 832   6              Hex_Str(g_scArrRxComSoft[22]);      // Hora Liquidacion + T gracia
+ 833   6              g_scDATE_Liq[6]=decena;
+ 834   6              g_scDATE_Liq[7]=unidad;
+ 835   6                
+ 836   6              Hex_Str(g_scArrRxComSoft[23]);      // Minuto Liquidacion + T gracia
+ 837   6              g_scDATE_Liq[8]=decena;
+ 838   6              g_scDATE_Liq[9]=unidad;
+ 839   6      //------------------------------------------------------------------------------------------------                
+ 840   6                              
+ 841   6              Lea_S1_Block(0);                  /* lee el bloque 0 de la tarjeta MF50 */
+ 842   6              g_cEstadoComSeqMF=SEQ_RTA_rdB4;
+ 843   6                      
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 15  
+
+ 844   6      //-----------------------------------------------------------------------------------------------
+ 845   6                    
+ 846   6      
+ 847   6                    }
+ 848   5                    else if  ((g_scArrRxComSoft[18]==2)&&((TipoCard==CARD_MENSUALIDAD)||(TipoCard==CARD_LOCATARIO)))
+ 849   5                    {
+ 850   6                      Debug_txt_Tibbo((unsigned char *) "MENSUAL NO POSEE IN OPCION RENOVAR\r\n");
+ 851   6                        
+ 852   6                      g_scDATE[0]='0';            // Año Entrada
+ 853   6                      g_scDATE[1]='0';
+ 854   6                      
+ 855   6          
+ 856   6                      g_scDATE[2]='0';            // Mes Entrada
+ 857   6                      g_scDATE[3]='0';
+ 858   6                      
+ 859   6          
+ 860   6                      g_scDATE[4]='0';              // Dia Entrada
+ 861   6                      g_scDATE[5]='0';
+ 862   6                      
+ 863   6          
+ 864   6                      g_scDATE[6]='0';            // Hora Entrada
+ 865   6                      g_scDATE[7]='0';
+ 866   6                                    
+ 867   6        
+ 868   6                      g_scDATE[8]='0';            // Minuto Entrada
+ 869   6                      g_scDATE[9]='0';
+ 870   6        
+ 871   6                      Cod_Dcto='0';
+ 872   6      
+ 873   6      //------------------------------------------------------------------------------------------------
+ 874   6                      TipoVeh=g_scArrRxComSoft[16]&(0x0f);
+ 875   6                      Val_Horario=g_scArrRxComSoft[16]&(0xf0);
+ 876   6                      Val_Horario>>=4;
+ 877   6      //------------------------------------------------------------------------------------------------
+ 878   6      
+ 879   6                      Val_PicoPlaca=g_scArrRxComSoft[17]&0xf0;
+ 880   6                      Val_PicoPlaca>>=4;
+ 881   6                      ValDCTO_INPAGO=g_scArrRxComSoft[17]&0x0F;
+ 882   6      
+ 883   6      
+ 884   6                      APB_CARD=g_scArrRxComSoft[18];
+ 885   6      //------------------------------------------------------------------------------------------------
+ 886   6        
+ 887   6                      g_scDATE_Liq[0]='0';           // Año Liquidacion + T gracia
+ 888   6                      g_scDATE_Liq[1]='0';
+ 889   6                      
+ 890   6            
+ 891   6                      g_scDATE_Liq[2]='0';           // Mes Liquidacion + T gracia
+ 892   6                      g_scDATE_Liq[3]='0';
+ 893   6                      
+ 894   6          
+ 895   6                      g_scDATE_Liq[4]='0';           // Dia Liquidacion + T gracia
+ 896   6                      g_scDATE_Liq[5]='0';
+ 897   6                      
+ 898   6          
+ 899   6                      g_scDATE_Liq[6]='0';           // Hora Liquidacion + T gracia
+ 900   6                      g_scDATE_Liq[7]='0';
+ 901   6                  
+ 902   6          
+ 903   6                      g_scDATE_Liq[8]='0';          // Minuto Liquidacion + T gracia
+ 904   6                      g_scDATE_Liq[9]='0';
+ 905   6      
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 16  
+
+ 906   6                      Lea_S1_Block(0);            // Block(4)
+ 907   6                      g_cEstadoComSeqMF=SEQ_RTA_rdB4;
+ 908   6      
+ 909   6      
+ 910   6      
+ 911   6                    }
+ 912   5                    else
+ 913   5                    {
+ 914   6                      
+ 915   6                        Debug_txt_Tibbo((unsigned char *) "SIN INGRESO\r\n");
+ 916   6                        posee_in_out();                   /*modificacion jp*/             
+ 917   6                      //  Eject_Card(ERR_APB);
+ 918   6      
+ 919   6      
+ 920   6      
+ 921   6      
+ 922   6      
+ 923   6                    }
+ 924   5                  }
+ 925   4                }
+ 926   3                else
+ 927   3                {
+ 928   4                  Eject_Card(ERR_LECTOR);
+ 929   4                }
+ 930   3      
+ 931   3                buffer_ready=0;
+ 932   3                g_cEstadoComSoft=ESPERA_RX;
+ 933   3                ValTimeOutCom=TIMWPoll;           
+ 934   3                }
+ 935   2              else if (ValTimeOutCom==1)
+ 936   2              {
+ 937   3                Debug_txt_Tibbo((unsigned char *) "SIN RTA. RD B6\r\n");
+ 938   3                Eject_Card(ERR_RD);
+ 939   3              }
+ 940   2      
+ 941   2            break;
+ 942   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 943   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+ 944   2        case SEQ_RTA_rdB4_Comercio:
+ 945   2      
+ 946   2              if ((buffer_ready==1)||(ValTimeOutCom==1))
+ 947   2              {
+ 948   3      
+ 949   3                if (g_scArrRxComSoft[7]=='Y')
+ 950   3                {
+ 951   4      
+ 952   4                  for (j=0; j<16; j++)
+ 953   4                  {
+ 954   5                    buffer_ticket[j+11]=g_scArrRxComSoft[8+j];
+ 955   5                  } 
+ 956   4      
+ 957   4                }
+ 958   3                else
+ 959   3                {
+ 960   4                  for (j=11; j<27; j++)
+ 961   4                  {
+ 962   5                    buffer_ticket[j]=' ';
+ 963   5                  }
+ 964   4        
+ 965   4                }
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 17  
+
+ 966   3                buffer_ticket[27]=ETX;
+ 967   3                
+ 968   3                for (j=0; j<28; j++)
+ 969   3                {
+ 970   4                    tx_aux(buffer_ticket[j]);
+ 971   4                }
+ 972   3                tx_aux(CR);
+ 973   3                tx_aux(LF);           
+ 974   3                
+ 975   3                Send_Port(28);                    // ENVIA AL PRINCIPAL
+ 976   3                g_cEstadoComSeqMF=SEQ_WCMD;
+ 977   3                g_cEstadoComSoft=ESPERA_RX;
+ 978   3                ValTimeOutCom=TIMConsulta;
+ 979   3                TIME_ESPERA=CTE_SEG*300;
+ 980   3      
+ 981   3      
+ 982   3              }
+ 983   2       
+ 984   2            break;    
+ 985   2      
+ 986   2      
+ 987   2            case SEQ_RTA_rdB4:
+ 988   2      
+ 989   2              if ((buffer_ready==1)||(TipoCard==CARD_MENSUALIDAD))
+ 990   2              {
+ 991   3                Debug_txt_Tibbo((unsigned char *) "LEYENDO B4\r\n");
+ 992   3                
+ 993   3                if ((g_scArrRxComSoft[7]=='Y')||(TipoCard==CARD_MENSUALIDAD))   /*lectura del bloque 0 ok*/
+ 994   3                {
+ 995   4      
+ 996   4      
+ 997   4                  buffer_ready=0;
+ 998   4      
+ 999   4                  buffer_ticket[0]=STX;               // Inicio de transmision
+1000   4                  buffer_ticket[1]='0';               // Dir 0
+1001   4                  buffer_ticket[3]='L';               // CMD L=lectura
+1002   4                  num_data=4;                         // Posicion 2 = Numero de Caracteres enviados
+1003   4      
+1004   4                  if ((TipoCard==CARD_MENSUALIDAD)||(TipoCard==CARD_LOCATARIO))
+1005   4                  {
+1006   5                    ve_id(ID2,ID1);
+1007   5                  }
+1008   4                  else
+1009   4                  {
+1010   5      
+1011   5                    for (j=0; g_scArrRxComSoft[8+j]!='\0'; j++)     // Código hasta encontrar NULL
+1012   5                    {
+1013   6                      buffer_ticket[num_data++]=g_scArrRxComSoft[8+j];
+1014   6                    }
+1015   5                  }
+1016   4                  
+1017   4                  /*datos de la memoria*/
+1018   4                  buffer_ticket[num_data++]=':';
+1019   4                  for (j=0; j<10; j++)                // Fecha De Entrada
+1020   4                  {
+1021   5                    buffer_ticket[num_data++]=g_scDATE[j];
+1022   5                  }
+1023   4                  buffer_ticket[num_data++]=':';
+1024   4                  
+1025   4                  if (TipoVeh==0x00)                  // Moto / Carro
+1026   4                  {
+1027   5                    buffer_ticket[num_data++]='C';            // Carro=0
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 18  
+
+1028   5                  }
+1029   4                  else if (TipoVeh==0x01)
+1030   4                  {
+1031   5                    buffer_ticket[num_data++]='M';          // Moto=1
+1032   5                  }
+1033   4                  else if (TipoVeh==0x02)
+1034   4                  {
+1035   5                    buffer_ticket[num_data++]='B';          // Bicicleta=2
+1036   5                  }
+1037   4                  else if (TipoVeh==0x03)
+1038   4                  {
+1039   5                    buffer_ticket[num_data++]='T';          // Camion=3
+1040   5                  }
+1041   4                  else
+1042   4                  {
+1043   5                    buffer_ticket[num_data++]='C';
+1044   5                  }
+1045   4      
+1046   4                  buffer_ticket[num_data++]=':';
+1047   4      //-------------------------------------------------------------------------------//
+1048   4      //            if (EmisionXperdida==1)
+1049   4      //            {
+1050   4      //              Cod_Dcto='0';
+1051   4      //              EmisionXperdida=0;
+1052   4      //            }
+1053   4      //-------------------------------------------------------------------------------//           
+1054   4                  buffer_ticket[num_data++]=Cod_Dcto;
+1055   4                  buffer_ticket[num_data++]=':';
+1056   4      //------------------------------------------------------------------------------// Fecha Liquidacion
+1057   4                  for (j=0; j<10; j++)            
+1058   4                  {
+1059   5                    buffer_ticket[num_data++]=g_scDATE_Liq[j];
+1060   5                  }
+1061   4                  buffer_ticket[num_data++]=':';
+1062   4      //------------------------------------------------------------------------------//
+1063   4                  if (TipoCard!=EMITIDA_PERDIDA)
+1064   4                  {
+1065   5                      buffer_ticket[num_data++]=TipoCard+0X30;      // Tipo de tarjeta 1=Rotacion Normal
+1066   5                  }
+1067   4                  else
+1068   4                  {
+1069   5                    
+1070   5                    buffer_ticket[num_data++]='P';            // Tipo de tarjeta Perdida
+1071   5                  }
+1072   4                  buffer_ticket[num_data++]=':';
+1073   4      //------------------------------------------------------------------------------//  LPR             
+1074   4                  if ((PrintLPR==1)&&(TipoCard!=CARD_MENSUALIDAD)&&(TipoCard!=CARD_COMPARTIDA)&&(TipoCard!=CARD_MULTIP
+             -LE))
+1075   4                  {
+1076   5                    Debug_txt_Tibbo((unsigned char *) "KEY2\r\n");
+1077   5                      
+1078   5                      LoadPass2();                              /*envia la clave 2 a la tarjeta mf50*/
+1079   5                      g_cEstadoComSeqMF=SEQ_RTA_KEY2; 
+1080   5                      
+1081   5                  }
+1082   4                  else
+1083   4                  {
+1084   5                    buffer_ticket[num_data++]=' ';
+1085   5                      buffer_ticket[num_data++]=':';
+1086   5      //------------------------------------------------------------------------------//
+1087   5                    buffer_ticket[num_data++]=ETX;            // Fin de trasmision
+1088   5                  
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 19  
+
+1089   5                    buffer_ticket[2]=num_data;              // Numero de datos (Despues de DIR antes de Comando)
+1090   5      //------------------------------------------------------------------------------//              
+1091   5      //              sel_com=PuertoMF;                 // Datos enviados ap Principal
+1092   5      //              for (j=num_datos-9; j<num_datos+1; j++)
+1093   5      //              {
+1094   5      //                tx_chr(buffer_ticket[j]);
+1095   5      //              }
+1096   5      //              tx_chr(CR);
+1097   5      //              tx_chr(LF);
+1098   5      //              while (sendactive==1) 
+1099   5      //              {
+1100   5      //              }
+1101   5      //              sel_com=PuertDB9;
+1102   5      //------------------------------------------------------------------------------//                    
+1103   5                    for (j=0; j<num_data; j++)
+1104   5                    {
+1105   6                      tx_aux(buffer_ticket[j]);
+1106   6                    }
+1107   5                    tx_aux(CR);
+1108   5                    tx_aux(LF);
+1109   5      
+1110   5      //------------------------------------------------------------------------------//              
+1111   5                    Send_Port(num_data);                // ENVIA AL PRINCIPAL
+1112   5                    if  (timeOut==1)
+1113   5                    {
+1114   6                      Send_Port(num_data);
+1115   6                    }
+1116   5                      g_cEstadoComSeqMF=SEQ_WCMD;
+1117   5                    TIME_ESPERA=CTE_SEG*30;             //6
+1118   5      
+1119   5                  }
+1120   4                }
+1121   3                else
+1122   3                 {
+1123   4                  Eject_Card(ERR_LECTOR);
+1124   4                }
+1125   3      
+1126   3                buffer_ready=0; 
+1127   3                g_cEstadoComSoft=ESPERA_RX;
+1128   3                ValTimeOutCom=TIMWPoll;                 
+1129   3                }
+1130   2              else if (ValTimeOutCom==1)
+1131   2              {
+1132   3                Debug_txt_Tibbo((unsigned char *) "SIN RTA. RD B4\r\n");
+1133   3                Eject_Card(ERR_RD);
+1134   3              }
+1135   2      
+1136   2      
+1137   2            break;
+1138   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1139   2             case SEQ_RTA_KEY2:
+1140   2        
+1141   2            if ((ValTimeOutCom==1)||(buffer_ready==1))
+1142   2            {
+1143   3              if ((buffer_ready==1)&&(g_scArrRxComSoft[6]=='Y'))  /*clave ok en el lector*/
+1144   3              {
+1145   4                Debug_txt_Tibbo((unsigned char *) "RD LPR\r\n");
+1146   4                buffer_ready=0;
+1147   4                Select_S2_Block(0);                                 /*leo el contenido de la informacion en MF50 del mensual q esta e
+             -n el sector2 bloque 0*/
+1148   4                g_cEstadoComSeqMF=SEQ_LPR;
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 20  
+
+1149   4                //lee sector 2 bloque 0 : PLACA
+1150   4      
+1151   4              }
+1152   3              else
+1153   3              {
+1154   4                buffer_ticket[num_data++]=' ';
+1155   4                buffer_ticket[num_data++]=':';
+1156   4                buffer_ticket[num_data++]=ETX;                // Fin de trasmision
+1157   4                buffer_ticket[2]=num_data;
+1158   4      //------------------------------------------------------------------------------//                    
+1159   4                for (j=0; j<num_data; j++)
+1160   4                {
+1161   5                  tx_aux(buffer_ticket[j]);
+1162   5                }
+1163   4                tx_aux(CR);
+1164   4                tx_aux(LF);
+1165   4      //------------------------------------------------------------------------------//              
+1166   4                Send_Port(num_data);                  // ENVIA AL PRINCIPAL
+1167   4                if  (timeOut==1)
+1168   4                {
+1169   5                  Send_Port(num_data);
+1170   5                }
+1171   4                  g_cEstadoComSeqMF=SEQ_WCMD;
+1172   4              }
+1173   3            }
+1174   2      
+1175   2             break;
+1176   2      //--------------------------------------------------------------------------------------------------------
+             ---------------------*
+1177   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1178   2            case SEQ_LPR:
+1179   2      
+1180   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1181   2              {
+1182   3                if ((buffer_ready==1)&&(g_scArrRxComSoft[7]=='Y'))
+1183   3                {
+1184   4                  Debug_txt_Tibbo((unsigned char *) "PLACA:");
+1185   4                  
+1186   4                        
+1187   4                  buffer_ready=0;
+1188   4                  for (j=0; g_scArrRxComSoft[8+j]!='\0'; j++)       // cargo el arreglo  para transmitirlo al pto paralel
+             -o la placa
+1189   4                  {
+1190   5                    buffer_ticket[num_data++]=g_scArrRxComSoft[8+j];
+1191   5                    tx_aux(g_scArrRxComSoft[8+j]);
+1192   5                  }
+1193   4      
+1194   4                  NumLiq = g_scArrRxComSoft[23];
+1195   4      
+1196   4                  tx_aux(CR);
+1197   4                  tx_aux(LF);
+1198   4                }
+1199   3                else                            // No hubo lectura sector LPR
+1200   3                {
+1201   4                  buffer_ticket[num_data++]=' ';
+1202   4                }
+1203   3                buffer_ticket[num_data++]=':';
+1204   3                buffer_ticket[num_data++]=ETX;                // Fin de trasmision
+1205   3                buffer_ticket[2]=num_data;                  // Numero de datos (Despues de DIR antes de Comando)
+1206   3      //------------------------------------------------------------------------------//              
+1207   3      //          sel_com=PuertoMF;                     // Datos enviados ap Principal
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 21  
+
+1208   3      //          for (j=num_datos-9; j<num_datos+1; j++)
+1209   3      //          {
+1210   3      //            tx_chr(buffer_ticket[j]);
+1211   3      //          }
+1212   3      //          tx_chr(CR);
+1213   3      //          tx_chr(LF);
+1214   3      //          while (sendactive==1) 
+1215   3      //          {
+1216   3      //          }
+1217   3      //          sel_com=PuertDB9;
+1218   3      //------------------------------------------------------------------------------//                    
+1219   3                Debug_Dividir_texto();        
+1220   3                Debug_txt_Tibbo((unsigned char *) "Comunicacion pto paralelo\d\n");
+1221   3                for (j=0; j<num_data; j++)
+1222   3                {
+1223   4                  tx_aux(buffer_ticket[j]);
+1224   4                }
+1225   3                tx_aux(CR);
+1226   3                tx_aux(LF);
+1227   3                Debug_Dividir_texto();
+1228   3                
+1229   3      //------------------------------------------------------------------------------//              
+1230   3                Send_Port(num_data);                    // ENVIA AL PRINCIPAL
+1231   3                if  (timeOut==1)
+1232   3                {
+1233   4                  Send_Port(num_data);
+1234   4                }
+1235   3                  TIME_ESPERA=CTE_SEG*30;       /*el tiempo era 6 */
+1236   3                  g_cEstadoComSeqMF=SEQ_WCMD;
+1237   3        
+1238   3               }
+1239   2      
+1240   2            break;
+1241   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1242   2            case SEQ_RTA_EJECT:
+1243   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1244   2              {
+1245   3                ValTimeOutCom=TIMWPoll;
+1246   3                buffer_ready=0;
+1247   3      
+1248   3                g_cEstadoComSeqMF=SEQ_ESPERA;
+1249   3                g_cEstadoComSoft=ESPERA_RX;
+1250   3                ValTimeOutCom=T_WAIT;
+1251   3                }
+1252   2            break;
+1253   2      
+1254   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1255   2            case SEQ_STATUS_OUT:
+1256   2      
+1257   2              if (ValTimeOutCom==1)
+1258   2              {
+1259   3                Get_Status();
+1260   3                g_cEstadoComSeqMF=SEQ_RTA_STATUSout;
+1261   3                buffer_ready=0;
+1262   3                g_cEstadoComSoft=ESPERA_RX;
+1263   3                ValTimeOutCom=TIMWPoll;       
+1264   3      
+1265   3                }
+1266   2            break;
+1267   2      //--------------------------------------------------------------------------------------------------------
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 22  
+
+             -----------------------*
+1268   2            case SEQ_RTA_STATUSout:
+1269   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1270   2              {
+1271   3                if ((buffer_ready==1)&&(g_scArrRxComSoft[3]=='P'))
+1272   3                {
+1273   4                  if (busy==0)
+1274   4                  {
+1275   5                    recibe_port();
+1276   5            
+1277   5                    if (buffer_ticket[3]=='?')
+1278   5                    {
+1279   6                      buffer_ticket[0]=STX;
+1280   6                      buffer_ticket[1]='0';
+1281   6                      buffer_ticket[2]=0x06;
+1282   6                      buffer_ticket[3]='?';
+1283   6                      buffer_ticket[4]=ACK;
+1284   6                      buffer_ticket[5]=ETX;
+1285   6                      Send_Port(6);         
+1286   6                      }
+1287   5                    else if (buffer_ticket[3]=='o')
+1288   5                    {
+1289   6                      GrabaTarjeta=0;
+1290   6                      Desarmado=0;
+1291   6                      Permite_Puerta=0;
+1292   6                      Permite_Billetero=0;
+1293   6                      Permite_Monedero=0;
+1294   6                      NotifyCofreCoin=0;
+1295   6                      NotifyCofreB2B=0;
+1296   6                      NotifyPuerta=0;
+1297   6                      }
+1298   5                    else if (buffer_ticket[3]=='F')
+1299   5                    {
+1300   6                      FueraServicio=1;
+1301   6                      }
+1302   5                    else if (buffer_ticket[3]=='E')
+1303   5                    {
+1304   6                      FueraServicio=0;
+1305   6                      AlarmaPrevia1=0;
+1306   6                      AlarmaPrevia2=0;
+1307   6                      AlarmaPrevia3=0;
+1308   6                      GrabaTarjeta=0;
+1309   6                      Desarmado=0;
+1310   6                      lock=0;
+1311   6                      onceAlarm=0;
+1312   6                      alarma1=0;
+1313   6                      alarma2=0;
+1314   6                      alarma3=0;
+1315   6                      Permite_Puerta=0;
+1316   6                      Permite_Billetero=0;
+1317   6                      Permite_Monedero=0;
+1318   6                      NotifyCofreCoin=0;
+1319   6                      NotifyCofreB2B=0;
+1320   6                      NotifyPuerta=0;
+1321   6                      }
+1322   5      
+1323   5                  }
+1324   4      
+1325   4                  Get_Status();
+1326   4                  g_cEstadoComSeqMF=SEQ_RTA_STATUSout;
+1327   4                }
+1328   3                else
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 23  
+
+1329   3                {
+1330   4                  g_cEstadoComSeqMF=SEQ_INICIO;
+1331   4      
+1332   4                }
+1333   3                buffer_ready=0;
+1334   3                g_cEstadoComSoft=ESPERA_RX;
+1335   3                ValTimeOutCom=TIMWPoll;
+1336   3                }
+1337   2      
+1338   2            break;
+1339   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1340   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1341   2            case SEQ_WCMD:
+1342   2              
+1343   2                if (TIME_ESPERA==1)
+1344   2              {
+1345   3                    Eject_Card(ERR_TIME_OUT);
+1346   3                
+1347   3      //-------------------------------------------------------------------------------------------*
+1348   3                    Debug_txt_Tibbo((unsigned char *) "EXPULSA TIME OUT\r\n");
+1349   3                
+1350   3      //-------------------------------------------------------------------------------------------*          
+1351   3      
+1352   3              }
+1353   2      
+1354   2              else if (busy==0)                                       /*recive informacion pto paralelo*/
+1355   2              {
+1356   3                recibe_port();
+1357   3      
+1358   3                if ((buffer_ticket[0]==ACK)&&(num_data==1))
+1359   3                {
+1360   4                  TIME_ESPERA=0;
+1361   4      
+1362   4                }
+1363   3      
+1364   3      //-------------------------------------------------------------------------------------------*
+1365   3        
+1366   3                if (buffer_ticket[3]=='O')        //eject
+1367   3                {
+1368   4                  TIME_ESPERA=0;
+1369   4      //-------------------------------------------------------------------------------------------*
+1370   4                  /*solo ejecta MF*/
+1371   4                  if (num_data==5)                
+1372   4                  {
+1373   5                      if (Desarmado==1)
+1374   5                    {
+1375   6                      Eject_Card(DESARM);
+1376   6                    }
+1377   5                    else
+1378   5                    {
+1379   6                      Eject_Card(CARD_EJECT);
+1380   6                    }
+1381   5      
+1382   5                    tx_aux('P');
+1383   5                    tx_aux('C');
+1384   5                    tx_aux(':');
+1385   5                    for (j=0; j<5; j++)
+1386   5                    {
+1387   6                      tx_aux(buffer_ticket[j]); 
+1388   6                    }
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 24  
+
+1389   5                    
+1390   5                    Debug_txt_Tibbo((unsigned char *) "\r\nEXPULSA\r\n");
+1391   5                    
+1392   5                    for (j=0; j<60; j++)
+1393   5                    {
+1394   6                      buffer_ticket[j]=0;
+1395   6                    }
+1396   5      //-------------------------------------------------------------------------------------------*
+1397   5                  }
+1398   4                  else if (num_data>=16)
+1399   4                  {
+1400   5        
+1401   5      //-------------------------------------------------------------------------------------------*
+1402   5                    Debug_txt_Tibbo((unsigned char *) "\r\nPC: comunicacion pto paralelo eject con fecha out\r\n");
+1403   5                    Debug_Dividir_texto();
+1404   5                    for (j=0; j<num_data; j++)
+1405   5                    {
+1406   6                      tx_aux(buffer_ticket[j]); 
+1407   6                    }
+1408   5                    tx_aux(0X0d);
+1409   5                    tx_aux(0X0a);
+1410   5                    Debug_Dividir_texto();
+1411   5      //-------------------------------------------------------------------------------------------*
+1412   5                    if (buffer_ticket[3]=='O')
+1413   5                    {
+1414   6                      year=two_one(buffer_ticket[5],buffer_ticket[6]);
+1415   6                      year=bcd_hex(year);
+1416   6                     
+1417   6                      month=two_one(buffer_ticket[7],buffer_ticket[8]);
+1418   6                      month=bcd_hex(month);
+1419   6        
+1420   6                      day=two_one(buffer_ticket[9],buffer_ticket[10]);
+1421   6                      day=bcd_hex(day);
+1422   6                     
+1423   6                      hour=two_one(buffer_ticket[11],buffer_ticket[12]);
+1424   6                      hour=bcd_hex(hour);
+1425   6        
+1426   6                      minut=two_one(buffer_ticket[13],buffer_ticket[14]);
+1427   6                      minut=bcd_hex(minut);
+1428   6        
+1429   6                      sector6[9]=ValDCTO_INPAGO|0x0f;     // Niblle Bajo == f (xxxx1111)  Pago proviene de Cajero
+1430   6                      
+1431   6                      sector6[11]=year;
+1432   6                        sector6[12]=month;
+1433   6                      sector6[13]=day;
+1434   6                        sector6[14]=hour;
+1435   6                      sector6[15]=minut;
+1436   6        
+1437   6      
+1438   6      //--------------------------------------------------------------------------------------------------
+1439   6                      Debug_txt_Tibbo((unsigned char *) "\r\nDatos MF \r\n");           
+1440   6                      Debug_Dividir_texto();
+1441   6                      for (j=0; j<16; j++)
+1442   6                      {
+1443   7                        BufferWrite_MF[j]=sector6[j];
+1444   7                        tx_auxH(BufferWrite_MF[j]);        // Envia sector 6 a BufferWrite_MF para grabar  !NO COMENTARIAR
+1445   7                      }
+1446   6                      tx_aux(CR);
+1447   6                      tx_aux(LF);
+1448   6                      Debug_Dividir_texto();
+1449   6      //--------------------------------------------------------------------------------------------------
+1450   6                      for (j=0; j<16; j++)              // Reintento
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 25  
+
+1451   6                      {
+1452   7                        RetryWrite_MF[j]=sector6[j];
+1453   7                      }         
+1454   6      
+1455   6                      ValTimeOutCom=500;  
+1456   6                      if (sector5[0]!=EMITIDA_PERDIDA )         /*preguntamos si la tarjeta esta perdida*/
+1457   6                      {
+1458   7                        Debug_txt_Tibbo((unsigned char *) "\r\nWR_MF SEQ_RTA_STATUS_WR_B6: \r\n");
+1459   7                        Block=2;                                /*graba fecha de salida*/
+1460   7                        Get_Status();
+1461   7                        buffer_ready=0;
+1462   7                        g_cEstadoComSeqMF=SEQ_RTA_STATUS_WR_B6; 
+1463   7                      }
+1464   6                      else
+1465   6                      {
+1466   7                                      
+1467   7                        Debug_txt_Tibbo((unsigned char *) "\r\nWR_MF SEQ_RTA_WR_2 MDFC_STD_PRDD_A_RTCN: \r\n");
+1468   7                        sector5[0]=01;                          /*modifica el estado de perdida a rotacion*/                    
+1469   7                        for (j=0; j<16; j++)
+1470   7                        {
+1471   8                        BufferWrite_MF[j]=sector5[j];
+1472   8                        tx_auxH(BufferWrite_MF[j]);        // Envia sector 6 a BufferWrite_MF para grabar  !NO COMENTARIAR
+1473   8                        }
+1474   7                        tx_aux(CR);
+1475   7                        tx_aux(LF);
+1476   7                        Debug_Dividir_texto();
+1477   7      //--------------------------------------------------------------------------------------------------
+1478   7                        for (j=0; j<16; j++)              // Reintento
+1479   7                        {
+1480   8                        RetryWrite_MF[j]=sector5[j];
+1481   8                        }         
+1482   7                        
+1483   7                        TIME_ESPERA=0;
+1484   7                        Block=1;
+1485   7                        //Graba_S1_BloqueSel(Block);
+1486   7                        Get_Status();
+1487   7                        buffer_ready=0;
+1488   7                        g_cEstadoComSeqMF=SEQ_RTA_STATUS_WR_B7;     //SEQ_RTA_WR_2;
+1489   7                        break;
+1490   7                      }
+1491   6                              /**/
+1492   6      //--------------------------------------------------------------------------------------------------
+1493   6                    }
+1494   5                    else if (buffer_ticket[3]=='M')
+1495   5                    {
+1496   6                        
+1497   6                        year=two_one(buffer_ticket[5],buffer_ticket[6]);            // FECHA DE VENCIMIENTO
+1498   6                      year=bcd_hex(year);
+1499   6                     
+1500   6                      month=two_one(buffer_ticket[7],buffer_ticket[8]);
+1501   6                      month=bcd_hex(month);
+1502   6        
+1503   6                      day=two_one(buffer_ticket[9],buffer_ticket[10]);
+1504   6                      day=bcd_hex(day);
+1505   6                     
+1506   6                      sector5[8]=year;
+1507   6                      sector5[9]=month;
+1508   6                      sector5[10]=day;
+1509   6      //--------------------------------------------------------------------------------------------------
+1510   6                      Debug_Dividir_texto();
+1511   6                      Debug_txt_Tibbo((unsigned char *) "WR VENCIMIENTO:SEQ_RTA_STATUS_WR_B5 ");              
+1512   6      
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 26  
+
+1513   6                        
+1514   6                      for (j=0; j<16; j++)
+1515   6                      {
+1516   7                        BufferWrite_MF[j]=sector5[j];
+1517   7                        tx_auxH(BufferWrite_MF[j]);        // Envia sector 6 a BufferWrite_MF para grabar  !NO COMENTARIAR
+1518   7                      }
+1519   6                      tx_aux(CR);
+1520   6                      tx_aux(LF);
+1521   6                      Debug_Dividir_texto();
+1522   6      //--------------------------------------------------------------------------------------------------
+1523   6                      for (j=0; j<16; j++)              // Reintento
+1524   6                      {
+1525   7                        RetryWrite_MF[j]=sector5[j];
+1526   7                      }         
+1527   6      
+1528   6                      Block=1;
+1529   6                      Get_Status();
+1530   6                      buffer_ready=0;
+1531   6                      g_cEstadoComSeqMF=SEQ_RTA_STATUS_WR_B5;     //****************************aqui vamos
+1532   6       //-------------------------------------------------------------------------------------------------- 
+1533   6                    }
+1534   5                    else
+1535   5                    {
+1536   6                      if (Desarmado==1)
+1537   6                      {
+1538   7                        Eject_Card(DESARM);
+1539   7                      }
+1540   6                      else
+1541   6                      {
+1542   7                        Eject_Card(CARD_EJECT);
+1543   7                      } 
+1544   6      
+1545   6      
+1546   6                    }
+1547   5      
+1548   5      
+1549   5      
+1550   5                  }
+1551   4                  else
+1552   4                  {
+1553   5                    Eject_Card(ERR_COM);
+1554   5                  }
+1555   4          
+1556   4                }
+1557   3                else if ((buffer_ticket[3]=='M')&&(buffer_ticket[4]==':'))        //&&(num_data==12))
+1558   3                {
+1559   4                    
+1560   4                  TIME_ESPERA=0;
+1561   4      
+1562   4                  year=two_one(buffer_ticket[5],buffer_ticket[6]);            // FECHA DE VENCIMIENTO
+1563   4                  year=bcd_hex(year);
+1564   4                  
+1565   4                  month=two_one(buffer_ticket[7],buffer_ticket[8]);
+1566   4                  month=bcd_hex(month);
+1567   4        
+1568   4                  day=two_one(buffer_ticket[9],buffer_ticket[10]);
+1569   4                  day=bcd_hex(day);
+1570   4                     
+1571   4                  sector5[8]=year;
+1572   4                  sector5[9]=month;
+1573   4                  sector5[10]=day;
+1574   4      //--------------------------------------------------------------------------------------------------
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 27  
+
+1575   4                  Debug_Dividir_texto();          
+1576   4                  Debug_txt_Tibbo((unsigned char *) "WR VENCIMIENTO 2 SEQ_RTA_STATUS_WR_B6:");    
+1577   4                  
+1578   4                  for (j=0; j<16; j++)
+1579   4                  {
+1580   5                    BufferWrite_MF[j]=sector5[j];
+1581   5                    tx_auxH(BufferWrite_MF[j]);        // Envia sector 6 a BufferWrite_MF para grabar  !NO COMENTARIAR
+1582   5                  }
+1583   4                  tx_aux(CR);
+1584   4                  tx_aux(LF);
+1585   4                  Debug_Dividir_texto();
+1586   4      //--------------------------------------------------------------------------------------------------
+1587   4                  for (j=0; j<16; j++)              // Reintento
+1588   4                  {
+1589   5                    RetryWrite_MF[j]=sector5[j];
+1590   5                  }         
+1591   4      //--------------------------------------------------------------------------------------------------
+1592   4                  Get_Status();
+1593   4                  buffer_ready=0;
+1594   4                  g_cEstadoComSeqMF=SEQ_RTA_STATUS_WR_B5;
+1595   4                  g_cEstadoComSoft=ESPERA_RX;
+1596   4                  ValTimeOutCom=10;
+1597   4      
+1598   4                }
+1599   3                else if (buffer_ticket[3]=='o')
+1600   3                {
+1601   4                  TIME_ESPERA=0;
+1602   4                  
+1603   4                  GrabaTarjeta=0;
+1604   4                  Desarmado=0;
+1605   4                  Permite_Puerta=0;
+1606   4                  Permite_Billetero=0;
+1607   4                  Permite_Monedero=0;
+1608   4                  NotifyCofreCoin=0;
+1609   4                  NotifyCofreB2B=0;
+1610   4                  NotifyPuerta=0;
+1611   4                  }
+1612   3                else if (buffer_ticket[3]=='E')
+1613   3                {
+1614   4                  TIME_ESPERA=0;
+1615   4      
+1616   4                  GrabaTarjeta=0;
+1617   4                  Desarmado=0;
+1618   4                  lock=0;
+1619   4                  onceAlarm=0;
+1620   4                  alarma1=0;
+1621   4                  alarma2=0;
+1622   4                  alarma3=0;
+1623   4                  Permite_Puerta=0;
+1624   4                  Permite_Billetero=0;
+1625   4                  Permite_Monedero=0;
+1626   4                  NotifyCofreCoin=0;
+1627   4                  NotifyCofreB2B=0;
+1628   4                  NotifyPuerta=0;
+1629   4                  }
+1630   3                else if (buffer_ticket[3]=='F')
+1631   3                {
+1632   4                  FueraServicio=1;
+1633   4                  TIME_ESPERA=0;
+1634   4                  }
+1635   3                else if (buffer_ticket[3]=='?')
+1636   3                {
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 28  
+
+1637   4                  TIME_ESPERA=0;
+1638   4                  Get_Status();
+1639   4                  g_cEstadoComSeqMF=SEQ_RTA_STATUS2;
+1640   4                  ConsultaSoft=1;
+1641   4                  }
+1642   3                else if ((buffer_ticket[3]=='U')&&(buffer_ticket[5]==ETX))
+1643   3                {
+1644   4                  
+1645   4                  TIME_ESPERA=0;
+1646   4      
+1647   4                  if ((buffer_ticket[4]>=0x36)&&((buffer_ticket[4]<=0x39)))
+1648   4                  {
+1649   5                    buffer_ticket[3]=0X00;            //BORRA CMD
+1650   5                  /*modificacion jp*/
+1651   5                  
+1652   5                    BufferWrite_MF[0]=buffer_ticket[4]-0X30;  // NIVEL SATATUS
+1653   5                  
+1654   5                    /*modificacion jp*/
+1655   5                    BufferWrite_MF[1]=ID_CLIENTE;
+1656   5                    BufferWrite_MF[2]=0X00;
+1657   5                    BufferWrite_MF[3]=COD_PARK_R;
+1658   5                    BufferWrite_MF[4]=0X00;
+1659   5                    for (j=5; j<16; j++)
+1660   5                    {
+1661   6                      BufferWrite_MF[j]=0X00;
+1662   6                    }
+1663   5      
+1664   5                    Block=1;
+1665   5                    Graba_S1_BloqueSel(Block);          // B5
+1666   5                    g_cEstadoComSeqMF=SEQ_RTA_WR;
+1667   5      
+1668   5                      Expulsa_Grabacion=1;
+1669   5                    
+1670   5                  }
+1671   4                  else
+1672   4                  {
+1673   5                    Eject_Card(ERR_CARD_TIPO);
+1674   5      
+1675   5                  }
+1676   4                  }
+1677   3              }
+1678   2              
+1679   2              if  (ValTimeOutCom==1)
+1680   2              {
+1681   3      //          Get_Status();
+1682   3      //          buffer_ready=0;
+1683   3      //          g_cEstadoComSeqMF=SEQ_RTA_STATUS2;
+1684   3      //          g_cEstadoComSoft=ESPERA_RX;
+1685   3      //          ValTimeOutCom=10;
+1686   3              }
+1687   2      
+1688   2            break;
+1689   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1690   2      //      GRABACION DE FECHA DE VENCIMIENTO
+1691   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1692   2            case SEQ_RTA_STATUS_WR_B5:
+1693   2      
+1694   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1695   2              {
+1696   3                if ((buffer_ready==1))
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 29  
+
+1697   3                {
+1698   4                  buffer_ready=0;
+1699   4                  if (g_scArrRxComSoft[5]=='Y')     
+1700   4                  {
+1701   5                    Expulsa_Grabacion=1;              
+1702   5                    RetryWR=4;                  // Numero de RE-Intentos 
+1703   5                    Block=1;
+1704   5                    Graba_S1_BloqueSel(Block);          // B5  //Sector 1 bloque 1 = Block(5) >> FECHA VENCIMIENTO
+1705   5                    g_cEstadoComSeqMF=SEQ_RTA_WR;           
+1706   5                  }
+1707   4                  else
+1708   4                  {
+1709   5                    ErrorWR(NO_CARD);
+1710   5                    Eject_Card(ERR_NO_CARD);
+1711   5                    RetryWR=0;      
+1712   5                    }
+1713   4                }
+1714   3                else
+1715   3                {
+1716   4                  ErrorWR(NO_RTA_WR);
+1717   4                  Eject_Card(ERR_WR);
+1718   4                  RetryWR=0;
+1719   4                }
+1720   3               }
+1721   2      
+1722   2            break;
+1723   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1724   2      //      GRABACION DE FECHA MAXIMA DE SALIDA
+1725   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1726   2            case SEQ_RTA_STATUS_WR_B6:
+1727   2      
+1728   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1729   2              {
+1730   3                if ((buffer_ready==1))
+1731   3                {
+1732   4                  buffer_ready=0;
+1733   4                  if (g_scArrRxComSoft[5]=='Y')     
+1734   4                  {
+1735   5                    Expulsa_Grabacion=1;              
+1736   5                    RetryWR=4;                  // Numero de RE-Intentos 
+1737   5                    LoadPass();                 // Sector 1 (bloque 2 = Block(6)) >> FECHA MAX DE SALIDA
+1738   5                    g_cEstadoComSeqMF=SEQ_SEL_B6w;
+1739   5                  }
+1740   4                  else
+1741   4                  {
+1742   5                    ErrorWR(NO_CARD);
+1743   5                    Eject_Card(ERR_NO_CARD);
+1744   5                    RetryWR=0;      
+1745   5                    }
+1746   4                }
+1747   3                else
+1748   3                {
+1749   4                  ErrorWR(NO_RTA_WR);
+1750   4                  Eject_Card(ERR_WR);
+1751   4                  RetryWR=0;
+1752   4                }
+1753   3               }
+1754   2      
+1755   2       
+1756   2      //--------------------------------------------------------------------------------------------------
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 30  
+
+1757   2            break;
+1758   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1759   2      /*------------------------------------------------------------------------------
+1760   2      ------------------------------------------------------------------------------*/     
+1761   2      
+1762   2            case SEQ_RTA_STATUS_WR_B7:
+1763   2      
+1764   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1765   2              {
+1766   3                
+1767   3      
+1768   3                if ((buffer_ready==1))
+1769   3                {
+1770   4                  buffer_ready=0;
+1771   4                  if (g_scArrRxComSoft[5]=='Y')     
+1772   4                  {
+1773   5                    Debug_txt_Tibbo((unsigned char *) "cmd ok SEQ_RTA_STATUS_WR_B7\r\n");         
+1774   5                    RetryWR=4;                  // Numero de RE-Intentos 
+1775   5                    Block=1;
+1776   5                    Graba_S1_BloqueSel(Block);          // B5  //Sector 1 bloque 1 = Block(5) >> FECHA VENCIMIENTO
+1777   5                    ValTimeOutCom=TIMWPoll;
+1778   5                    g_cEstadoComSeqMF=SEQ_RTA_WR_2;           
+1779   5                  }
+1780   4                  else
+1781   4                  {
+1782   5                    ErrorWR(NO_CARD);
+1783   5                    Eject_Card(ERR_NO_CARD);
+1784   5                    RetryWR=0;      
+1785   5                    }
+1786   4                }
+1787   3                else
+1788   3                {
+1789   4                  ErrorWR(NO_RTA_WR);
+1790   4                  Eject_Card(ERR_WR);
+1791   4                  RetryWR=0;
+1792   4                }
+1793   3               }
+1794   2      
+1795   2            break;  
+1796   2      
+1797   2      
+1798   2            case SEQ_RTA_STATUS2:
+1799   2      
+1800   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1801   2              {
+1802   3      //--------------------------------------------------------------------          
+1803   3      //          sel_com=PuertoMF;
+1804   3      //          for (j=0; j<g_cContByteRx; j++)
+1805   3      //          {
+1806   3      //            tx_chr(g_scArrRxComSoft[j]);  
+1807   3      //          }
+1808   3      //          tx_chr(0xd);
+1809   3      //          tx_chr(0xa);
+1810   3      //          while (sendactive==1) 
+1811   3      //          {
+1812   3      //          }
+1813   3      //          sel_com=PuertoDB9;
+1814   3      //--------------------------------------------------------------------  
+1815   3                if ((buffer_ready==1))
+1816   3                {
+1817   4                  if (g_scArrRxComSoft[5]=='Y')     
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 31  
+
+1818   4                  {
+1819   5                      g_cEstadoComSeqMF=SEQ_WCMD;
+1820   5                    g_cEstadoComSoft=ESPERA_RX;
+1821   5                    ValTimeOutCom=500;
+1822   5                    if (ConsultaSoft==1)
+1823   5                    {
+1824   6                      ConsultaSoft=0;
+1825   6                      buffer_ticket[0]=STX;
+1826   6                      buffer_ticket[1]='0';
+1827   6                      buffer_ticket[2]=0x06;
+1828   6                      buffer_ticket[3]='?';
+1829   6                      buffer_ticket[4]=ACK;
+1830   6                      buffer_ticket[5]=ETX;
+1831   6                      Send_Port(6);
+1832   6                    }
+1833   5                  }
+1834   4                  else 
+1835   4                  {
+1836   5                    ErrorWR(NO_CARD);
+1837   5                    Eject_Card(ERR_NO_CARD);          //Eject_Card(ERR_WR);
+1838   5                    RetryWR=0;
+1839   5                    
+1840   5                    g_cEstadoComSoft=ESPERA_RX;
+1841   5                    ValTimeOutCom=TIMWPoll;
+1842   5        
+1843   5                    if (ConsultaSoft==1)
+1844   5                    {
+1845   6                      buffer_ticket[0]=STX;
+1846   6                      buffer_ticket[1]='0';
+1847   6                      buffer_ticket[2]=0X06;
+1848   6                      buffer_ticket[3]='e';
+1849   6                      buffer_ticket[4]=0x40;        //Tarjeta Mal Insertada
+1850   6                      buffer_ticket[5]=ETX;
+1851   6                      Send_Port(6);
+1852   6                    }
+1853   5                    else
+1854   5                    {
+1855   6      
+1856   6                      buffer_ticket[0]=STX;
+1857   6                      buffer_ticket[1]='0';
+1858   6                      buffer_ticket[2]=0X05;
+1859   6                      buffer_ticket[3]='X';
+1860   6                      buffer_ticket[4]=ETX;
+1861   6                      Send_Port(5);  
+1862   6        
+1863   6                      FueraServicio=0;
+1864   6                      GrabaTarjeta=0;
+1865   6                      Desarmado=0;
+1866   6        
+1867   6                        Permite_Puerta=0;
+1868   6                      Permite_Billetero=0;
+1869   6                      Permite_Monedero=0;
+1870   6                      NotifyCofreCoin=0;
+1871   6                      NotifyCofreB2B=0;
+1872   6                      NotifyPuerta=0;
+1873   6                    }
+1874   5                  }
+1875   4                }
+1876   3                else
+1877   3                {
+1878   4                      g_cEstadoComSeqMF=SEQ_WCMD;
+1879   4                    g_cEstadoComSoft=ESPERA_RX;
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 32  
+
+1880   4                    ValTimeOutCom=500;
+1881   4                }
+1882   3                buffer_ready=0;     
+1883   3              }
+1884   2            break;
+1885   2      //--------------------------------------------------------------------------------------------------------
+             -----------------------*
+1886   2      //      case SEQ_SEL_B5w:
+1887   2      //        if ((ValTimeOutCom==1))
+1888   2      //        {
+1889   2      //          if ((buffer_ready==1)&&(g_scArrRxComSoft[3]=='P'))  // 0:SIN ERROR
+1890   2      //          {
+1891   2      //            Block=1;
+1892   2      //            Graba_S1_BloqueSel(1);              // B5
+1893   2      //            g_cEstadoComSeqMF=SEQ_RTA_WR; 
+1894   2      //          }
+1895   2      //          else
+1896   2      //          {
+1897   2      //            Eject_Card(ERR_SELECT);
+1898   2      //          }
+1899   2      //          buffer_ready=0;
+1900   2      //          g_cEstadoComSoft=ESPERA_RX;
+1901   2      //          ValTimeOutCom=TIMWPoll;
+1902   2      //        }
+1903   2      //      break;
+1904   2      //********************************************************************************************************
+             -***********************
+1905   2            case SEQ_SEL_B6w:
+1906   2              if ((ValTimeOutCom==1)||(buffer_ready==1))
+1907   2              {
+1908   3                if ((buffer_ready==1)&&(g_scArrRxComSoft[6]=='Y'))  // 0:SIN ERROR    
+1909   3                {
+1910   4                  buffer_ready=0;
+1911   4                  Debug_txt_Tibbo((unsigned char *) "Grabando...\r\n");   
+1912   4                      
+1913   4                    
+1914   4                  Block=2;
+1915   4                  Graba_S1_BloqueSel(Block);
+1916   4                  g_cEstadoComSeqMF=SEQ_RTA_WR;
+1917   4                  Expulsa_Grabacion=1;
+1918   4      
+1919   4                  buffer_ready=0;
+1920   4                  g_cEstadoComSoft=ESPERA_RX;
+1921   4                  ValTimeOutCom=TIMWPoll;
+1922   4      
+1923   4                }
+1924   3                else
+1925   3                {
+1926   4                  Block=2;
+1927   4                  ErrorWR(SELECCION_SECTOR);
+1928   4                  g_cEstadoComSeqMF=SEQ_RETRY;            
+1929   4                }
+1930   3        
+1931   3                buffer_ready=0;
+1932   3                g_cEstadoComSoft=ESPERA_RX;
+1933   3                ValTimeOutCom=TIMWPoll;
+1934   3                }
+1935   2      
+1936   2            break;
+1937   2      //********************************************************************************************************
+             -***********************
+1938   2           case SEQ_RTA_WR:
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 33  
+
+1939   2            if ((ValTimeOutCom==1)||(buffer_ready==1))
+1940   2            {
+1941   3                
+1942   3              if ((buffer_ready==1)&&(g_scArrRxComSoft[7]=='Y'))        /*datos ok grabados en MF50*/
+1943   3              {
+1944   4                buffer_ready=0;
+1945   4                Debug_txt_Tibbo((unsigned char *) "Comparando...\r\n");   
+1946   4                        
+1947   4      //----------------------------
+1948   4      //----------------------------
+1949   4                /*debug del dato grabado en la tarjeta sin verificacion*/
+1950   4                tx_aux('R');
+1951   4                tx_aux('D');
+1952   4                tx_aux(':');
+1953   4                for (j=0; j<16; j++)            // Lectura  sector 6
+1954   4                {
+1955   5                  tx_auxH(g_scArrRxComSoft[8+j]);   // Envia sector 6 leido
+1956   5                }
+1957   4                tx_aux(CR);
+1958   4                tx_aux(LF);
+1959   4      
+1960   4      //          if ((BufferWrite_MF[11]==g_scArrRxComSoft[8])&&(BufferWrite_MF[12]==g_scArrRxComSoft[17])&&(BufferW
+             -rite_MF[13]==g_scArrRxComSoft[18])&&(BufferWrite_MF[14]==g_scArrRxComSoft[19])&&(BufferWrite_MF[15]==g_scArrRxComSoft[20
+             -]))
+1961   4                
+1962   4                Comparacion=1;
+1963   4                for (j=0; j<16; j++)
+1964   4                {
+1965   5                  if (BufferWrite_MF[j]!=g_scArrRxComSoft[8+j])
+1966   5                  {
+1967   6                    j=16;
+1968   6                    Comparacion=0;
+1969   6                  }
+1970   5                }
+1971   4      
+1972   4                if (Comparacion==1)
+1973   4                {
+1974   5                  if (Expulsa_Grabacion==1)
+1975   5                  {
+1976   6                    Debug_txt_Tibbo((unsigned char *) "CARD_EJECT_WR \r\n");
+1977   6                    Eject_Card(CARD_EJECT_WR);
+1978   6                    RetryWR=0;
+1979   6                    Expulsa_Grabacion=0;
+1980   6                  }
+1981   5                  else
+1982   5                  {
+1983   6                    Debug_txt_Tibbo((unsigned char *) "CARD_EJECT \r\n");
+1984   6                    Eject_Card(CARD_EJECT);
+1985   6                    RetryWR=0;
+1986   6                  }
+1987   5                  Debug_txt_Tibbo((unsigned char *) "GRABACION OK \r\n");   
+1988   5                  
+1989   5      
+1990   5                  for (j=0; j<60; j++)
+1991   5                  {
+1992   6                    buffer_ticket[j]=0;
+1993   6                  }
+1994   5      
+1995   5                  break;
+1996   5                }
+1997   4                else
+1998   4                {
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 34  
+
+1999   5                  Debug_txt_Tibbo((unsigned char *) "DIFERENCIA \r\n");   
+2000   5                  
+2001   5        
+2002   5                  g_cEstadoComSeqMF=SEQ_RETRY;
+2003   5                  g_cEstadoComSoft=ESPERA_RX;
+2004   5                  ValTimeOutCom=20;
+2005   5                  buffer_ready=0;
+2006   5                }
+2007   4      
+2008   4       //-----------------------------
+2009   4      //------------------------------
+2010   4      
+2011   4              }
+2012   3              else
+2013   3              {
+2014   4                if ((buffer_ready==1)&&(g_scArrRxComSoft[7]=='N'))
+2015   4                {
+2016   5                  buffer_ready=0;
+2017   5                  ErrorWR(COMANDO_WR);
+2018   5                }
+2019   4                else if (buffer_ready==0)
+2020   4                {
+2021   5                  ErrorWR(NO_RTA_WR);
+2022   5                }
+2023   4                buffer_ready=0;
+2024   4                g_cEstadoComSeqMF=SEQ_RETRY;
+2025   4              }
+2026   3              g_cEstadoComSoft=ESPERA_RX;
+2027   3              ValTimeOutCom=TIMWPoll;
+2028   3            }
+2029   2           break;
+2030   2      /*------------------------------------------------------------------------------
+2031   2      ------------------------------------------------------------------------------*/      
+2032   2            
+2033   2            case SEQ_RTA_WR_2:
+2034   2            if ((ValTimeOutCom==1)||(buffer_ready==1))
+2035   2            {
+2036   3                
+2037   3              if ((buffer_ready==1)&&(g_scArrRxComSoft[7]=='Y'))        /*datos ok grabados en MF50*/
+2038   3              {
+2039   4                buffer_ready=0;
+2040   4                Debug_txt_Tibbo((unsigned char *) "Reparando MF perdida...\r\n");   
+2041   4                        
+2042   4                Debug_Dividir_texto();
+2043   4      //----------------------------
+2044   4                  for (j=0; j<16; j++)
+2045   4                  {
+2046   5                    BufferWrite_MF[j]=sector6[j];
+2047   5                    tx_auxH(BufferWrite_MF[j]);        // Envia sector 6 a BufferWrite_MF para grabar  !NO COMENTARIAR
+2048   5                  }
+2049   4                    tx_aux(CR);
+2050   4                    tx_aux(LF);
+2051   4                  
+2052   4      //--------------------------------------------------------------------------------------------------
+2053   4                  for (j=0; j<16; j++)              // Reintento
+2054   4                  {
+2055   5                    RetryWrite_MF[j]=sector6[j];
+2056   5                  }               
+2057   4      
+2058   4      
+2059   4                /*debug del dato grabado en la tarjeta sin verificacion*/
+2060   4                Debug_Dividir_texto();
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 35  
+
+2061   4              
+2062   4                Block=2;                                /*graba fecha de salida*/
+2063   4                Get_Status();
+2064   4                buffer_ready=0;
+2065   4                g_cEstadoComSeqMF=SEQ_RTA_STATUS_WR_B6; 
+2066   4                
+2067   4                g_cEstadoComSoft=ESPERA_RX;
+2068   4                ValTimeOutCom=20;
+2069   4                
+2070   4                
+2071   4                
+2072   4       //-----------------------------
+2073   4      //------------------------------
+2074   4      
+2075   4              }
+2076   3              else
+2077   3              {
+2078   4                if ((buffer_ready==1)&&(g_scArrRxComSoft[7]=='N'))
+2079   4                {
+2080   5                  buffer_ready=0;
+2081   5                  ErrorWR(COMANDO_WR);
+2082   5                }
+2083   4                else if (buffer_ready==0)
+2084   4                {
+2085   5                  ErrorWR(NO_RTA_WR);
+2086   5                }
+2087   4                LoadPass(); 
+2088   4                buffer_ready=0;
+2089   4                g_cEstadoComSeqMF=SEQ_RETRY_KEY_2;              ///SEQ_RTA_STATUS_WR_B7;        //SEQ_RETRY;
+2090   4              }
+2091   3              g_cEstadoComSoft=ESPERA_RX;
+2092   3              ValTimeOutCom=TIMWPoll;
+2093   3            }
+2094   2           break;     
+2095   2      //------------------------------------------------------------------------------------------*
+2096   2          case SEQ_RETRY:
+2097   2            if (ValTimeOutCom==1)
+2098   2            {
+2099   3              if (RetryWR!=0)
+2100   3              {
+2101   4                Info_Retry();
+2102   4              }
+2103   3              buffer_ready=0;
+2104   3              g_cEstadoComSeqMF=SEQ_RETRY_ANTENA_OFF;
+2105   3              g_cEstadoComSoft=ESPERA_RX;
+2106   3              ValTimeOutCom=5;
+2107   3            }
+2108   2          break;
+2109   2      //------------------------------------------------------------------------------------------*
+2110   2          case SEQ_RETRY_ANTENA_OFF:
+2111   2      
+2112   2            if (ValTimeOutCom==1)
+2113   2            {
+2114   3              if (RetryWR!=0)
+2115   3              {
+2116   4                RetryWR--;
+2117   4                Get_Status();                       /*valido si hay tarjeta en el lector*/
+2118   4                g_cEstadoComSeqMF= SEQ_LEE_ID_BACKUP;     //SEQ_RETRY_CARD_INSIDE;
+2119   4              }
+2120   3              else
+2121   3              {
+2122   4                ErrorWR(FALLA_WR);
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 36  
+
+2123   4                Eject_Card(ERR_WR);
+2124   4              }
+2125   3              buffer_ready=0;
+2126   3              g_cEstadoComSoft=ESPERA_RX;
+2127   3              ValTimeOutCom=TIMWPoll;     
+2128   3            }
+2129   2      
+2130   2          break;
+2131   2      //------------------------------------------------------------------------------------------*
+2132   2          case SEQ_RETRY_CARD_INSIDE:
+2133   2            if ((ValTimeOutCom==1)||(buffer_ready==1))
+2134   2            {
+2135   3              if ((buffer_ready==1)&&(g_scArrRxComSoft[5]=='Y'))
+2136   3              {
+2137   4                Debug_txt_Tibbo((unsigned char *) "valida password SEQ_RETRY_KEY\r\n");
+2138   4                LoadPass();                                 /*valido el password 1 en MF50*/
+2139   4                g_cEstadoComSeqMF=SEQ_RETRY_KEY;
+2140   4              }
+2141   3              else
+2142   3              {
+2143   4                ErrorWR(NO_CARD);
+2144   4                Eject_Card(ERR_NO_CARD);
+2145   4                RetryWR=0;
+2146   4              }
+2147   3      
+2148   3              buffer_ready=0;
+2149   3              g_cEstadoComSoft=ESPERA_RX;
+2150   3              ValTimeOutCom=TIMWPoll;
+2151   3              }
+2152   2          break;
+2153   2      //------------------------------------------------------------------------------------------*
+2154   2          case SEQ_RETRY_KEY:             /*envia cmd de grabar datos a MF50*/
+2155   2      
+2156   2            if ((ValTimeOutCom==1)||(buffer_ready==1))
+2157   2            {
+2158   3              if ((buffer_ready==1)&& (g_scArrRxComSoft[6]=='Y')) // 0:SIN ERROR
+2159   3              {
+2160   4                Graba_S1_BloqueSel(Block);                                                /*graba la MF50 con los datos recolectados*/
+2161   4                g_cEstadoComSeqMF=SEQ_RTA_WR;
+2162   4                Expulsa_Grabacion=1;
+2163   4                  buffer_ready=0;
+2164   4              }
+2165   3              else
+2166   3              {
+2167   4                Debug_txt_Tibbo((unsigned char *) "ERRR KER\r\n");    
+2168   4              
+2169   4                g_cEstadoComSeqMF=SEQ_RETRY;
+2170   4              }
+2171   3              buffer_ready=0;
+2172   3              g_cEstadoComSoft=ESPERA_RX;
+2173   3              ValTimeOutCom=TIMWPoll;
+2174   3              }
+2175   2      
+2176   2          break;
+2177   2      /*------------------------------------------------------------------------------------
+2178   2      leo el numero de serie de la tarjeta y lo almaceno para compararlo        
+2179   2      ------------------------------------------------------------------------    ---------*/
+2180   2          case SEQ_LEE_ID_BACKUP:
+2181   2          if ((ValTimeOutCom==1)||(buffer_ready==1))
+2182   2            {
+2183   3              if ((buffer_ready==1)&&(g_scArrRxComSoft[5]=='Y'))      /*Tarjeta en el lector*/
+2184   3              {
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 37  
+
+2185   4                Debug_txt_Tibbo((unsigned char *) "TARJETA LOCK\r\n");
+2186   4                Select_Card();                                    /*consulto el numero de la serie de la tarjeta*/
+2187   4                g_cEstadoComSeqMF=SEQ_BRTA_ID_BACKUP;
+2188   4      
+2189   4              }
+2190   3              else
+2191   3              {
+2192   4                ErrorWR(NO_CARD);
+2193   4                Eject_Card(ERR_NO_CARD);
+2194   4                RetryWR=0;
+2195   4              }
+2196   3      
+2197   3              buffer_ready=0;
+2198   3              g_cEstadoComSoft=ESPERA_RX;
+2199   3              ValTimeOutCom=TIMWPoll;
+2200   3              }
+2201   2          break;  
+2202   2          
+2203   2      /*------------------------------------------------------------------------------------
+2204   2      almaceno el numero del Id leido y lo comparo con el anterior      
+2205   2      ------------------------------------------------------------------------    ---------*/
+2206   2          case  SEQ_BRTA_ID_BACKUP:  //DEBE SER SEQ_RETRY_CARD_INSIDE
+2207   2            if (buffer_ready==1)
+2208   2              {
+2209   3                buffer_ready=0;
+2210   3                if (g_scArrRxComSoft[5]=='Y')
+2211   3                {
+2212   4                  /*Y= tiene el numero de la tarjeta
+2213   4                    N= fallo el numero de tarjeta
+2214   4                    E= no hay tarjeta
+2215   4                  */
+2216   4                  BID1=g_scArrRxComSoft[6];                     /*numero de serie de la tarjeta enviado a tcp/ip*/
+2217   4                  BID2=g_scArrRxComSoft[7];
+2218   4                  BID3=g_scArrRxComSoft[8];
+2219   4                  BID4=g_scArrRxComSoft[9];
+2220   4                  Debug_txt_Tibbo((unsigned char *) "CARD_BACKUP: \r\n");
+2221   4                  
+2222   4                  Ve_Hex(g_scArrRxComSoft[6]);      // 
+2223   4                  tx_aux(decena);
+2224   4                  tx_aux(unidad);
+2225   4                  tx_aux(' ');
+2226   4                  
+2227   4                  Ve_Hex(g_scArrRxComSoft[7]);      // 
+2228   4                  tx_aux(decena);
+2229   4                  tx_aux(unidad);
+2230   4                  tx_aux(' ');            
+2231   4      
+2232   4                  Ve_Hex(g_scArrRxComSoft[8]);      // 
+2233   4                  tx_aux(decena);
+2234   4                  tx_aux(unidad);
+2235   4                  tx_aux(' ');
+2236   4      
+2237   4                  Ve_Hex(g_scArrRxComSoft[9]);      // 
+2238   4                  tx_aux(decena);
+2239   4                  tx_aux(unidad);
+2240   4                  tx_aux(' ');
+2241   4      
+2242   4                  tx_aux(CR);
+2243   4                  tx_aux(LF);                           
+2244   4                  
+2245   4                  if ((ID1==BID1)&& (ID2==BID2)&& (ID3==BID3)&& (ID4==BID4)== 1)
+2246   4                  {
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 38  
+
+2247   5                  Get_Status(); 
+2248   5                  g_cEstadoComSeqMF=SEQ_RETRY_CARD_INSIDE;
+2249   5                  buffer_ready=0;   
+2250   5                  }
+2251   4                  else
+2252   4                  {
+2253   5                    Debug_txt_Tibbo((unsigned char *) "ERROR NO ES LA MISMA CARD\r\n");
+2254   5                    
+2255   5                    Eject_Card(ERR_SELECT);;
+2256   5                  }
+2257   4                  
+2258   4                  
+2259   4                              
+2260   4                }
+2261   3                else
+2262   3                {
+2263   4                  Debug_txt_Tibbo((unsigned char *) "ERROR CARD\r\n");
+2264   4                    
+2265   4                  Eject_Card(ERR_SELECT);;
+2266   4                }
+2267   3       
+2268   3              }
+2269   2              else if (ValTimeOutCom==1)
+2270   2              {
+2271   3                Debug_txt_Tibbo((unsigned char *) "SIN RTA. SELECT\r\n");
+2272   3                Eject_Card(ERR_RD);
+2273   3      
+2274   3              }
+2275   2      
+2276   2            break;
+2277   2          case SEQ_RETRY_KEY_2:             /*envia cmd de grabar datos a MF50*/
+2278   2      
+2279   2            if ((ValTimeOutCom==1)||(buffer_ready==1))
+2280   2            {
+2281   3              if ((buffer_ready==1)&& (g_scArrRxComSoft[6]=='Y')) // 0:SIN ERROR
+2282   3              {
+2283   4                Graba_S1_BloqueSel(Block);                                                /*graba la MF50 con los datos recolectados*/
+2284   4                g_cEstadoComSeqMF=SEQ_RTA_WR_2;
+2285   4                
+2286   4                  buffer_ready=0;
+2287   4              }
+2288   3              else
+2289   3              {
+2290   4                Debug_txt_Tibbo((unsigned char *) "ERRR KER\r\n");    
+2291   4              
+2292   4                g_cEstadoComSeqMF=SEQ_RETRY_KEY_2;
+2293   4              }
+2294   3              buffer_ready=0;
+2295   3              g_cEstadoComSoft=ESPERA_RX;
+2296   3              ValTimeOutCom=TIMWPoll;
+2297   3              }
+2298   2      
+2299   2          break;
+2300   2              
+2301   2              /* redirecciono el pto serie para leer en QR*/
+2302   2          case SEQ_QR_WAIT:
+2303   2            if ((ValTimeOutCom == 1)||(buffer_ready != 0))
+2304   2            {
+2305   3              Debug_txt_Tibbo((unsigned char *) "\r\nlector datalogic cod QR SEQ_QR_WAIT\r\n"); 
+2306   3              if ((g_cContByteRx=='E')|| (g_cContByteRx=='D'))
+2307   3              {
+2308   4                g_cEstadoComSeqMF=SEQ_QR_PTPRL;                                                   
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 39  
+
+2309   4                g_cEstadoComSoft=RX_QR;
+2310   4                ValTimeOutCom=3;    
+2311   4              }
+2312   3              else
+2313   3              {
+2314   4              buffer_ready =0;
+2315   4              sel_com=PuertoMF;                                           /*pto serial redireccionado*/
+2316   4              esQR=1;
+2317   4              g_cEstadoComSeqMF=SEQ_QR_INICIO;                            /*no hay tarjeta probamos si hay QR*/
+2318   4              g_cEstadoComSoft=RX_QR;
+2319   4              ValTimeOutCom=TIMConsulta;                        //TIMWPoll;                                     /*se espera el dato del qr*/
+2320   4              g_cContByteRx=0;    
+2321   4              }         /*contador de bits en cero*/
+2322   3            }
+2323   2      
+2324   2            break;
+2325   2      
+2326   2            /*inicia la lectura del ticket*/
+2327   2          case  SEQ_QR_INICIO:
+2328   2            if ((ValTimeOutCom == 1)||(buffer_ready != 0))
+2329   2            {
+2330   3              if (buffer_ready == 1)
+2331   3              {
+2332   4              
+2333   4                /*trama con codigo QR*/
+2334   4                Debug_txt_Tibbo((unsigned char *) "\r\nQR SEQ_QR_INICIO\r\n");  
+2335   4                Debug_txt_Tibbo((unsigned char *) "\r\ntrama del lector datalogic cod QR\r\n");             /*la respuesta 
+             -es desconocida*/
+2336   4                Debug_txt_Tibbo(g_scArrRxComSoft);                                                          /*imprimo la trama recibida*/
+2337   4                Debug_txt_Tibbo((unsigned char *) "\r\n");
+2338   4              
+2339   4                        
+2340   4                g_cEstadoComSeqMF=SEQ_QR_PTPRL;                                                   
+2341   4                g_cEstadoComSoft=RX_QR;
+2342   4                ValTimeOutCom=3;        
+2343   4              }
+2344   3              else 
+2345   3              {
+2346   4                if (contador_QR==5)
+2347   4                { 
+2348   5                /*no hay datos QR se va a trajetas*/
+2349   5                  Debug_txt_Tibbo((unsigned char *) " HABILITO TARJETAS SEQ_QR_INICIO\r\n");
+2350   5                  contador_QR=0;
+2351   5                  ES = 1;     
+2352   5                  esQR=0;
+2353   5                  sel_com=PuertoDB9;
+2354   5                  buffer_ready=0;                                   /* buffer del pto serie (0) inicia a esperar la trama*/
+2355   5                  g_cEstadoComSeqMF=SEQ_INICIO;                     /*no hay tarjeta probamos si hay QR*/
+2356   5                  g_cEstadoComSoft=ESPERA_RX;
+2357   5                  ValTimeOutCom=T_WAIT;
+2358   5                }
+2359   4                else 
+2360   4                { 
+2361   5                  contador_QR++;
+2362   5                  ES = 1;                                                       /*activo pto serie*/          
+2363   5                  esQR=1;                                                       /*habilito el pto serial del QR */
+2364   5                  sel_com=PuertoMF;                                             /*PuertoMF*/
+2365   5                  buffer_ready=0;                                               /* limpio el buffer*/
+2366   5                  g_cContByteRx=0 ;           
+2367   5                  g_cEstadoComSeqMF=SEQ_QR_INICIO;                                /*no hay tarjeta probamos si hay QR*/
+2368   5                  g_cEstadoComSoft=RX_QR;
+2369   5                  ValTimeOutCom=TIMConsulta;                                          /*TIMConsulta=1200*/
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 40  
+
+2370   5                }
+2371   4                
+2372   4            }
+2373   3          break;  
+2374   3      
+2375   3      
+2376   3            /*tengo el dato del ticket QR */
+2377   3          
+2378   3          case SEQ_QR_PTPRL: 
+2379   3            if ((ValTimeOutCom == 1)||(buffer_ready != 0))  
+2380   3            {
+2381   4            /*analizo los datos*/
+2382   4            ES = 0;                                                     /*inactivo pto serie y analizo el dato*/  
+2383   4            Debug_txt_Tibbo((unsigned char *) "cod SEQ_QR_PTPRL r\n");
+2384   4            buffer_ticket[0]=STX;                                       // Inicio de transmision TRAMA QR
+2385   4            buffer_ticket[1]='0';                                       // Direccion del pc
+2386   4            buffer_ticket[2]='L';                                       /*numero de digitos de la trama se modifica al final*/  
+2387   4            buffer_ticket[3]='Q';                                       /*cmd de cobro del cajero L tarjeta Q cobro por QR*/  
+2388   4            buffer_ticket[4]=0; 
+2389   4            num_data=4;
+2390   4            
+2391   4            Debug_Dividir_texto() ;                                                         // Posicion 2 = Numero de Caracteres enviados
+2392   4            Debug_txt_Tibbo((unsigned char *) "numero de digitos de la tramar\n");
+2393   4            tx_aux(g_cContByteRx);  
+2394   4            Debug_txt_Tibbo((unsigned char *) "\r\n");                  /*final de linea*/      
+2395   4            Debug_Dividir_texto() ;     
+2396   4             /*se analiza la trama recibida */
+2397   4            temp=num_num(g_scArrRxComSoft);                             /*funcion que pregunta donde empieza el primer numero del
+             - ticket*/
+2398   4            temp2=num_char(g_scArrRxComSoft+temp,'>');                  /*busca un caracter en la trama en este caso el cara
+             -cter final de la trama*/
+2399   4            
+2400   4            if ((tipo_vehiculo=strstr(g_scArrRxComSoft,"Carro"))!= 0)   /*pregunto el tipo de vehiculo grabado en el
+             - codigo QR*/
+2401   4                {
+2402   5                vehiculo='C';
+2403   5                }
+2404   4              else
+2405   4                {
+2406   5                vehiculo='M';
+2407   5                }
+2408   4                /*informacion del tipo de vehiculo y la longitud del ticket*/
+2409   4              Debug_txt_Tibbo((unsigned char *) "tipo de vehiculo: ");    /*msj tipo de vehiculo */
+2410   4              tx_aux(vehiculo);                                           /*caracter del tipo de vehiculo*/
+2411   4              Debug_txt_Tibbo((unsigned char *) "\r\n");                  /*final de linea*/
+2412   4              
+2413   4              Debug_txt_Tibbo((unsigned char *) "longitud de la trama: ");/*msj longitud de la trama */
+2414   4              tx_auxH(temp);                                              /*numero de inicio del ticket*/
+2415   4              Debug_txt_Tibbo((unsigned char *) "\r\n");                  /*final de linea*/                          
+2416   4              Debug_txt_Tibbo((unsigned char *) "longitud del Ticket: ");
+2417   4              tx_auxH(temp2);                                             /*numero de caracteres del ticket*/
+2418   4              Debug_txt_Tibbo((unsigned char *) "\r\n");                  /*final de linea*/
+2419   4              Ticket[0]=0;
+2420   4                
+2421   4              /*validamos la trama */
+2422   4              if(temp== 0x0c)                                             /*la trama debe iniciar en 0x0c*/
+2423   4              { 
+2424   5                strncpy(Ticket,g_scArrRxComSoft+temp,temp2);                /*copio el numero de ticket*/
+2425   5                Ticket[temp2]=0;  
+2426   5                num_data=strlen(Ticket);                                    /*longitud del ticket*/
+2427   5                strncat(buffer_ticket,Ticket,num_data);                     /*copio el numero de ticket al buffer del pto paral
+             -elo*/
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 41  
+
+2428   5                strcat(buffer_ticket,":");                                  /*copio el separador de la trama*/  
+2429   5              
+2430   5                /*imprimo el numero del ticket*/
+2431   5                Debug_txt_Tibbo((unsigned char *) "Numero del Ticket: ");       
+2432   5                Debug_txt_Tibbo(Ticket);                                    /*imprimo el numero de ticket*/
+2433   5                Debug_txt_Tibbo((unsigned char *) "\r\n");                  /*final de linea*/
+2434   5                
+2435   5                
+2436   5                
+2437   5                
+2438   5                /*leo la fecha de ingreso del ticket en QR*/
+2439   5              
+2440   5                if ((tipo_vehiculo = strstr(g_scArrRxComSoft,"Fecha:"))!= 0);
+2441   5                {
+2442   6                  strncpy(fecha,tipo_vehiculo+7,16);  
+2443   6                  /*imprimo en el lcd fechad e ingreso en el ticket QR*/
+2444   6                  Debug_txt_Tibbo((unsigned char *) "Fecha de ingreso: ");  /*trama de fecha*/
+2445   6                  Debug_txt_Tibbo(fecha);
+2446   6                  Debug_txt_Tibbo((unsigned char *) "\r\n");                /*final de linea*/
+2447   6                  /*copio al año*/
+2448   6                  strncat(buffer_ticket,fecha+2,2);                         /*copio el año a la trama*/
+2449   6                  /*copio el mes */
+2450   6                  strncat(buffer_ticket,fecha+5,2);                         /*copio el mes a la trama */
+2451   6                  /*copio el dia */
+2452   6                  strncat(buffer_ticket,fecha+8,2);                         /*copio el dia*/
+2453   6                  /*copio la hora */
+2454   6                  strncat(buffer_ticket,fecha+11,2);                        /*copio la hora*/
+2455   6                  /*copio los minutos */
+2456   6                  strncat(buffer_ticket,fecha+14,2);                        /*copio los minutos*/
+2457   6                  
+2458   6                  strcat(buffer_ticket,":");
+2459   6      
+2460   6      
+2461   6      
+2462   6                if (vehiculo=='C')                                          /*se escribe el tipo de vehiculo a la trama*/
+2463   6                  {
+2464   7                  strcat(buffer_ticket,"C");
+2465   7                  } 
+2466   6                  else
+2467   6                  {
+2468   7                  strcat(buffer_ticket,"M");
+2469   7                  }         
+2470   6                strcat(buffer_ticket,":0:");                                  /*separador de la trama, codigo del comercio y separador
+             - */    
+2471   6              
+2472   6                
+2473   6              
+2474   6                /*leo la fecha de salida del ticket en QR*/
+2475   6              
+2476   6              
+2477   6              
+2478   6                  strcat(buffer_ticket,"0000000000:1::");                             /*separador, tipo de tarjeta, separador,separa
+             -dor*/
+2479   6                  num_data=strlen(buffer_ticket);
+2480   6                  buffer_ticket[num_data]=0x03;                                 /*el final de la trama ETX*/
+2481   6                  buffer_ticket[2]=num_data+1;
+2482   6                  Debug_txt_Tibbo((unsigned char *) "Trama pto paralelo\r\n ");/*trama del pto paralelo*/
+2483   6                  DebugBufferMF(buffer_ticket,num_data+1);                      /*muestro la trama q se va enviar al pto paralelo
+             -*/
+2484   6              
+2485   6                  /*envio pto paralelo*/
+2486   6                  Send_Port(num_data+1);                // ENVIA AL PRINCIPAL
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 42  
+
+2487   6                    if  (timeOut==1)
+2488   6                    {
+2489   7                      Send_Port(num_data+1);
+2490   7                    }
+2491   6                    TIME_ESPERA=CTE_SEG*30;   
+2492   6              
+2493   6      
+2494   6                    /*trama ok */
+2495   6                  
+2496   6                  
+2497   6                  ES = 1;                                                       /*activo pto serie*/          
+2498   6                  esQR=1;                                                       /*habilito el pto serial */
+2499   6                  sel_com=PuertoMF;   
+2500   6                  g_cContByteRx=0;              //PuertoDB9;PuertoMF
+2501   6                  buffer_ready=0;                                             /* buffer del pto serie (0) inicia a esperar la trama*/
+2502   6                  g_cEstadoComSeqMF=SEQ_QR_WCMD;                                /*no hay tarjeta probamos si hay QR*/
+2503   6                  g_cEstadoComSoft=RX_QR;
+2504   6                  ValTimeOutCom=T_WAIT;
+2505   6                
+2506   6                }
+2507   5              
+2508   5                
+2509   5              } 
+2510   4              else
+2511   4              
+2512   4              { 
+2513   5                /*error los caracteres no estan completas se espera volver a leer el dato*/   
+2514   5                Debug_txt_Tibbo((unsigned char *) "ERROR caracteres incompletos QR\r\n ");/*trama del pto paralelo*/  
+             -        
+2515   5                ES = 1;       
+2516   5                sel_com=PuertoMF; 
+2517   5                g_cContByteRx=0;
+2518   5                esQR=1;
+2519   5                buffer_ready=0; 
+2520   5                g_cEstadoComSeqMF=SEQ_QR_INICIO;                      /*no hay tarjeta probamos si hay QR*/
+2521   5                g_cEstadoComSoft=RX_QR;
+2522   5                ValTimeOutCom=TIMWPoll;
+2523   5              }
+2524   4            } 
+2525   3              
+2526   3              
+2527   3            break;
+2528   3      //------------------------------------------------------------------------------------------*
+2529   3            case SEQ_QR_WCMD:
+2530   3              
+2531   3          
+2532   3                  if (TIME_ESPERA==1)
+2533   3              {
+2534   4                
+2535   4      //-------------------------------------------------------------------------------------------*
+2536   4                Debug_txt_Tibbo((unsigned char *) " TIME OUT QR\r\n");
+2537   4                if (contador_QR==5)
+2538   4                {
+2539   5                  
+2540   5                  Debug_txt_Tibbo((unsigned char *) " HABILITO TARJETAS \r\n");
+2541   5                  TIME_ESPERA=0;
+2542   5                  esQR=0;
+2543   5                  sel_com=PuertoDB9;
+2544   5                  Get_Status();
+2545   5                    
+2546   5                  buffer_ready=0;                                   /* buffer del pto serie (0) inicia a esperar la trama*/
+2547   5                  g_cEstadoComSeqMF=SEQ_INICIO;                     /*no hay tarjeta probamos si hay QR*/
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 43  
+
+2548   5                  g_cEstadoComSoft=ESPERA_RX;
+2549   5                  ValTimeOutCom=T_WAIT;
+2550   5                }
+2551   4                else
+2552   4                {
+2553   5                  contador_QR++;
+2554   5                  TIME_ESPERA=0;  
+2555   5                  ES = 1;                                                       /*activo pto serie*/          
+2556   5                  esQR=1;                                                       /*habilito el pto serial del QR */
+2557   5                  sel_com=PuertoMF;                                             /*PuertoMF*/
+2558   5                  buffer_ready=0;                                               /* limpio el buffer*/
+2559   5                  g_cContByteRx=0 ;           
+2560   5                  g_cEstadoComSeqMF=SEQ_QR_INICIO;                                /*no hay tarjeta probamos si hay QR*/
+2561   5                  g_cEstadoComSoft=RX_QR;
+2562   5                  ValTimeOutCom=TIMConsulta;
+2563   5                }
+2564   4      //-------------------------------------------------------------------------------------------*          
+2565   4      
+2566   4              }
+2567   3              else 
+2568   3              { 
+2569   4                 if (busy==0)                                       /*recive informacion pto paralelo*/
+2570   4                {
+2571   5                  recibe_port();
+2572   5      
+2573   5                  if ((buffer_ticket[0]==ACK)&&(num_data==1))
+2574   5                  {
+2575   6                  TIME_ESPERA=0;
+2576   6      
+2577   6                  }
+2578   5      
+2579   5      //-------------------------------------------------------------------------------------------*
+2580   5        
+2581   5                if (buffer_ticket[3]=='O')        //eject
+2582   5                {
+2583   6                  TIME_ESPERA=0;
+2584   6      //-------------------------------------------------------------------------------------------*
+2585   6              
+2586   6                  /*solo ejecta MF cancela  la transaccion */
+2587   6                  if (num_data==5)                
+2588   6                  {
+2589   7                   Debug_txt_Tibbo((unsigned char *) "\r\nEXPULSA transaccion CANCELADA\r\n"); 
+2590   7      
+2591   7                    tx_aux('P');
+2592   7                    tx_aux('C');
+2593   7                    tx_aux(':');
+2594   7                    for (j=0; j<5; j++)
+2595   7                    {
+2596   8                      tx_aux(buffer_ticket[j]); 
+2597   8                    }
+2598   7                  TIME_ESPERA=0;  
+2599   7                  ES = 1;                                                       /*activo pto serie*/          
+2600   7                  esQR=1;                                                       /*habilito el pto serial del QR */
+2601   7                  sel_com=PuertoMF;                                             /*PuertoMF*/
+2602   7                  buffer_ready=0;                                               /* limpio el buffer*/
+2603   7                  g_cEstadoComSeqMF=SEQ_QR_INICIO;                                /*no hay tarjeta probamos si hay QR*/
+2604   7                  g_cEstadoComSoft=RX_QR;
+2605   7                  ValTimeOutCom=TIMConsulta;                                      //T_WAIT;
+2606   7                    break;
+2607   7                  } 
+2608   6      
+2609   6                    /*transaccion ok*/        
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 44  
+
+2610   6                   else if (num_data>=16)
+2611   6                  {
+2612   7        
+2613   7      //-------------------------------------------------------------------------------------------*
+2614   7                    Debug_txt_Tibbo((unsigned char *) "\r\nPC: RX dato pto paralelo QR con fecha out\r\n");
+2615   7                    Debug_Dividir_texto();
+2616   7                    for (j=0; j<num_data; j++)
+2617   7                    {
+2618   8                      tx_aux(buffer_ticket[j]); 
+2619   8                    }
+2620   7                    tx_aux(0X0d);
+2621   7                    tx_aux(0X0a);
+2622   7                    Debug_Dividir_texto();
+2623   7      //-------------------------------------------------------------------------------------------*
+2624   7                    
+2625   7                      
+2626   7                      if (contador_QR==5)
+2627   7                      { 
+2628   8                      Debug_txt_Tibbo((unsigned char *) "\r\nHABILITO LECTURA DE TARJETA \r\n");  
+2629   8                      contador_QR=0;
+2630   8                      TIME_ESPERA=0;
+2631   8                      esQR=0;
+2632   8                      sel_com=PuertoDB9;
+2633   8                      Get_Status();
+2634   8                      
+2635   8                      buffer_ready=0;                                   /* buffer del pto serie (0) inicia a esperar la trama*/
+2636   8                      g_cEstadoComSeqMF=SEQ_RTA_STATUS;                     /*no hay tarjeta probamos si hay QR*/
+2637   8                      g_cEstadoComSoft=ESPERA_RX;
+2638   8                      ValTimeOutCom=T_WAIT;
+2639   8                      }
+2640   7                      else 
+2641   7                      {
+2642   8                        contador_QR++;
+2643   8                        TIME_ESPERA=0;  
+2644   8                        ES = 1;                                                       /*activo pto serie*/          
+2645   8                        esQR=1;                                                       /*habilito el pto serial del QR */
+2646   8                        sel_com=PuertoMF;                                             /*PuertoMF*/
+2647   8                        buffer_ready=0;                                               /* limpio el buffer*/
+2648   8                        g_cEstadoComSeqMF=SEQ_QR_INICIO;                                /*no hay tarjeta probamos si hay QR*/
+2649   8                        g_cEstadoComSoft=RX_QR;
+2650   8                        ValTimeOutCom=TIMConsulta;    
+2651   8                      }
+2652   7                  }
+2653   6                              /**/
+2654   6      //--------------------------------------------------------------------------------------------------
+2655   6                }
+2656   5                    
+2657   5                  
+2658   5              
+2659   5              }
+2660   4            }
+2661   3          }
+2662   2                break;
+2663   2      
+2664   2            
+2665   2            
+2666   2        }
+2667   1          
+2668   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+C51 COMPILER V9.59.0.0   LECTOR                                                            03/02/2020 12:27:56 PAGE 45  
+
+   CODE SIZE        =   9402    ----
+   CONSTANT SIZE    =   1436    ----
+   XDATA SIZE       =     33      12
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

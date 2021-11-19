@@ -1,0 +1,253 @@
+C51 COMPILER V9.59.0.0   UART                                                              03/02/2020 12:27:56 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE UART
+OBJECT MODULE PLACED IN .\hex\uart.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE uart.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Sec_Creator LPR RenewM C
+                    -trlLuz) DEBUG OBJECTEXTEND TABS(2) OBJECT(.\hex\uart.obj)
+
+line level    source
+
+   1          #include <uart.h> 
+   2          #include <reg51.h>
+   3          
+   4          sbit sel_com = P0^7;        //Micro switch                      *
+   5          
+   6          //ESTADOR RECEPCION SOFTWARE
+   7          
+   8          #define ESPERA_RX       0
+   9          #define ESPERA_INICIO_RTA   1
+  10          #define RX_CONTADOR_H     2
+  11          #define RX_CONTADOR_L     3
+  12          #define SAVE_STR_SOF      4
+  13          #define RX_BCC          5
+  14          #define RX_QR           6
+  15          
+  16          
+  17          #define ENQ 0x05
+  18          #define EOT 0x04
+  19          #define ACK 0x06
+  20          #define STX 0x02
+  21          #define ETX 0x03
+  22          #define CR  0x0d
+  23          #define LF  0x0a
+  24          #define START_CHR 0x68
+  25          
+  26          #define TAMANO_RX_COM_SOFT    50      //50
+  27          #define TAMANO_TX_COM_SOFT    50
+  28          #define RBUF_SIZE   128
+  29          extern unsigned char g_scArrRxComSoft[];
+  30          extern unsigned char g_scArrTxComSoft[];
+  31          extern unsigned char g_cEstadoComSoft;
+  32          extern unsigned char g_cContByteRx;
+  33          
+  34          
+  35          
+  36          extern bit sendactive;
+  37          extern bit buffer_ready;
+  38          extern bit TxENQ;
+  39          extern const bit PuertoMF;
+  40          extern bit esQR;
+  41          /*funciones externas*/
+  42          extern void tx_auxH(unsigned char caracter);
+  43          
+  44          //------------------------------------------------------------------------------------------*
+  45          //*******************************************************************************************
+  46          //                                              *
+  47          // Function to initialize the serial port and the UART baudrate.              *
+  48          //                                              *
+  49          //*******************************************************************************************
+  50          void com_initialize (void) 
+  51          {
+  52   1          sendactive = 0;               // transmitter is not active              *
+  53   1          SCON = 0x50;                // serial port MODE 1, enable serial receiver   *
+  54   1        PCON |= 0x80;                 // 0x80=SMOD: set serial baudrate doubler     *
+C51 COMPILER V9.59.0.0   UART                                                              03/02/2020 12:27:56 PAGE 2   
+
+  55   1          TMOD |= 0x20;                 // put timer 1 into MODE 2              *
+  56   1        TCON = 0x40;              // TCON                       *
+  57   1      //------------------------------------------------------------------------------------------*
+  58   1      //  TH1 =  0xFF;              // TH1  115000 Bps @ 22.148MHZ            *
+  59   1      //  TL1 =  0xFF;              // TH1                        *
+  60   1      //------------------------------------------------------------------------------------------*
+  61   1        TH1 =  0xF4;              // TH1 9600 Bps @ 22.148MHZ             *          
+  62   1        TL1 =  0xF4;              // TH1                        *
+  63   1      //------------------------------------------------------------------------------------------*
+  64   1      //  TH1 =  0xFa;              // TH1 12000 Bps @ 22.148MHZ            *          
+  65   1      //  TL1 =  0xFa;              // TH1                        *
+  66   1      //------------------------------------------------------------------------------------------*
+  67   1      //  TH1 = (unsigned char) (256 - (XTAL / (16L * 12L * baudrate)));              *
+  68   1      //------------------------------------------------------------------------------------------*
+  69   1          TR1 = 1;              // start timer 1
+  70   1          ES = 1;               // enable serial interrupts
+  71   1      }
+  72          
+  73          
+  74          void EscribirCadenaSoft(unsigned char tamano_cadena)
+  75          {
+  76   1      unsigned char i;
+  77   1       
+  78   1        for(i=0;i<tamano_cadena;i++)
+  79   1          {
+  80   2              tx_chr(g_scArrTxComSoft[i]);
+  81   2          }
+  82   1      
+  83   1      }
+  84          
+  85          //***************************************************************************************************
+  86          //  Transmision de un caracter                                    *
+  87          //***************************************************************************************************
+  88           void tx_chr (unsigned char data_com)
+  89           {
+  90   1      
+  91   1        SBUF=data_com;
+  92   1        sendactive=1;
+  93   1        while (sendactive==1) 
+  94   1        {
+  95   2        }
+  96   1       }
+  97           
+  98           //***************************************************************************************************
+  99          static void com_isr (void) interrupt 4 using 1
+ 100          {
+ 101   1       unsigned char cDatoRx;
+ 102   1        if (RI) 
+ 103   1        {
+ 104   2            cDatoRx = SBUF;                     // read character
+ 105   2            RI = 0;                           // clear interrupt request flag
+ 106   2        
+ 107   2            
+ 108   2          switch (g_cEstadoComSoft)
+ 109   2          {
+ 110   3      //---------------------------------------------------------------------------------------------------
+ 111   3            case ESPERA_RX:
+ 112   3            
+ 113   3              if(cDatoRx==ACK)
+ 114   3              {
+ 115   4                TxENQ=1;
+ 116   4              }
+C51 COMPILER V9.59.0.0   UART                                                              03/02/2020 12:27:56 PAGE 3   
+
+ 117   3              else 
+ 118   3              {
+ 119   4                esQR=1;
+ 120   4                sel_com=PuertoMF;
+ 121   4                g_cContByteRx=0;
+ 122   4                g_scArrRxComSoft[g_cContByteRx]=cDatoRx;
+ 123   4                g_cContByteRx++;
+ 124   4                g_scArrRxComSoft[g_cContByteRx]=0;
+ 125   4                
+ 126   4                g_cEstadoComSoft=RX_QR  ;
+ 127   4              }
+ 128   3      
+ 129   3            break;
+ 130   3      //------------------------------------------------------------------------------------------------
+ 131   3            case ESPERA_INICIO_RTA:
+ 132   3      
+ 133   3              if(cDatoRx==STX)
+ 134   3              {
+ 135   4                g_cContByteRx=0;
+ 136   4                buffer_ready=0;
+ 137   4                g_scArrRxComSoft[g_cContByteRx++]=cDatoRx;
+ 138   4                g_cEstadoComSoft=RX_CONTADOR_H;
+ 139   4              }
+ 140   3              
+ 141   3        
+ 142   3            break;
+ 143   3      //------------------------------------------------------------------------------------------------
+ 144   3            case RX_CONTADOR_H:
+ 145   3      
+ 146   3              g_scArrRxComSoft[g_cContByteRx++]=cDatoRx;
+ 147   3              g_cEstadoComSoft=RX_CONTADOR_L;
+ 148   3      
+ 149   3        
+ 150   3            break;
+ 151   3      //------------------------------------------------------------------------------------------------
+ 152   3            case RX_CONTADOR_L:
+ 153   3      
+ 154   3              g_scArrRxComSoft[g_cContByteRx++]=cDatoRx;
+ 155   3              g_cEstadoComSoft=SAVE_STR_SOF;
+ 156   3          
+ 157   3            break;
+ 158   3      //------------------------------------------------------------------------------------------------
+ 159   3            case SAVE_STR_SOF:
+ 160   3      
+ 161   3              g_scArrRxComSoft[g_cContByteRx++]=cDatoRx;
+ 162   3      
+ 163   3              if(g_cContByteRx>TAMANO_RX_COM_SOFT)
+ 164   3              {
+ 165   4                g_cEstadoComSoft=ESPERA_RX;
+ 166   4              }
+ 167   3              else if(cDatoRx==ETX)
+ 168   3              {
+ 169   4                g_cEstadoComSoft=RX_BCC;
+ 170   4              }
+ 171   3            break;
+ 172   3      //-------------------------------------------------------------------------------------------------
+ 173   3            case RX_BCC:
+ 174   3      
+ 175   3              g_scArrRxComSoft[g_cContByteRx++]=cDatoRx;
+ 176   3              buffer_ready=1;
+ 177   3        
+ 178   3            break;
+C51 COMPILER V9.59.0.0   UART                                                              03/02/2020 12:27:56 PAGE 4   
+
+ 179   3            case RX_QR:
+ 180   3              
+ 181   3                
+ 182   3              if (g_cContByteRx < RBUF_SIZE)
+ 183   3              {
+ 184   4                if(cDatoRx=='<')
+ 185   4                {
+ 186   5                  buffer_ready=1;
+ 187   5                  g_cContByteRx++;
+ 188   5                  g_scArrRxComSoft[g_cContByteRx]=0;
+ 189   5                  break;
+ 190   5                }
+ 191   4                else 
+ 192   4                {
+ 193   5                  g_scArrRxComSoft[g_cContByteRx]=cDatoRx;    /*recivo los caracteres del qr*/
+ 194   5                  g_cContByteRx++;
+ 195   5                  g_scArrRxComSoft[g_cContByteRx]=0;
+ 196   5                  g_cEstadoComSoft=RX_QR  ;
+ 197   5                  
+ 198   5                }
+ 199   4              }
+ 200   3              else
+ 201   3              {
+ 202   4                g_cContByteRx=0;
+ 203   4                g_cEstadoComSoft=ESPERA_RX;
+ 204   4              }
+ 205   3          break;
+ 206   3            
+ 207   3      //-------------------------------------------------------------------------------------------------
+ 208   3            default:
+ 209   3              g_cEstadoComSoft=ESPERA_RX;
+ 210   3            break;
+ 211   3          } //switch (g_cEstadoComSoft)     
+ 212   2        }
+ 213   1        
+ 214   1      //--------------------------------------------------------------------------------------------------*
+ 215   1      // Transmitted data interrupt.                                    *
+ 216   1      //--------------------------------------------------------------------------------------------------*
+ 217   1          if (TI != 0) 
+ 218   1        {
+ 219   2            TI = 0;                 // clear interrupt request flag
+ 220   2          sendactive=0;
+ 221   2          }
+ 222   1      }
+ 223          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    437    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

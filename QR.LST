@@ -1,0 +1,27 @@
+C51 COMPILER V9.59.0.0   QR                                                                01/10/2020 12:08:30 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE QR
+OBJECT MODULE PLACED IN .\hex\QR.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE QR.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Sec_Creator LPR RenewM Ctr
+                    -lLuz) DEBUG OBJECTEXTEND TABS(2) OBJECT(.\hex\QR.obj)
+
+line level    source
+
+   1          #include <reg51.h>
+   2          #include <QR.h>
+*** WARNING C318 IN LINE 2 OF QR.c: can't open file 'QR.h'
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

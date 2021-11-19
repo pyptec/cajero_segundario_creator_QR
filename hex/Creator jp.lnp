@@ -1,0 +1,9 @@
+".\hex\Creator.obj",
+".\hex\uart.obj",
+".\hex\debug.obj",
+".\hex\CRT_288.obj",
+".\hex\ptoprlelo.obj",
+".\hex\lector.obj" 
+TO ".\hex\Creator jp" 
+PRINT(".\Creator jp.m51") RAMSIZE(256) 
+CODE( 0X0000-0XFFFF )

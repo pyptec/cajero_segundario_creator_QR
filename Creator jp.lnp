@@ -1,0 +1,9 @@
+"Creator.obj",
+"uart.obj",
+"debug.obj",
+"CRT_288.obj",
+"ptoprlelo.obj",
+"lector.obj" 
+TO "Creator jp" 
+RAMSIZE(256) 
+CODE( 0X0000-0XFFFF )

@@ -1,0 +1,357 @@
+C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE CRT_288
+OBJECT MODULE PLACED IN .\hex\CRT_288.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE CRT_288.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Sec_Creator LPR Renew
+                    -M CtrlLuz) DEBUG OBJECTEXTEND TABS(2) OBJECT(.\hex\CRT_288.obj)
+
+line level    source
+
+   1          #include <crt_288.h> 
+   2          
+   3          #define STX 0x02
+   4          #define ETX 0x03
+   5          
+   6          #define ESPERA_RX       0
+   7          #define TIMWPoll  150
+   8          
+   9          #define B_0000    0
+  10          #define B_0001    1
+  11          #define B_0010    2
+  12          #define B_0011    3
+  13          #define B_0100    4
+  14          #define B_0101    5
+  15          #define B_0110    6
+  16          #define B_0111    7
+  17          #define B_1000    8
+  18          #define B_1001    9
+  19          #define B_1010    a
+  20          #define B_1011    b
+  21          #define B_1100    c
+  22          #define B_1101    d
+  23          #define B_1110    e
+  24          #define B_1111    f
+  25          
+  26          #define _B2H(bits)    B_##bits
+  27          #define B2H(bits)    _B2H(bits)
+  28          #define _HEX(n)        0x##n
+  29          #define HEX(n)        _HEX(n)
+  30          #define _CCAT(a,b)    a##b
+  31          #define CCAT(a,b)   _CCAT(a,b)
+  32          
+  33          #define MEMORY(a,b)        HEX( CCAT(B2H(a),B2H(b)) )
+  34          #define SEQ_RTA_EJECT     0X04
+  35          
+  36          extern unsigned char g_scArrTxComSoft[];
+  37          extern unsigned char g_cEstadoComSoft;
+  38          extern unsigned int ValTimeOutCom;
+  39          extern unsigned char BufferWrite_MF[];
+  40          extern unsigned char g_cEstadoComSeqMF;
+  41          extern unsigned char ID1,ID2,ID3,ID4; 
+  42          
+  43          /*funciones de prototipo*/
+  44          extern void EscribirCadenaSoft(unsigned char tamano_cadena);
+  45          extern void Debug_txt_Tibbo(unsigned char * str);
+  46          /*---------------------------------------------------------------------
+  47          Procedimeinto que expulsa la tarjeta del lector MF
+  48          Host 02,00,02,32,30,etx,bcc
+  49          Reader return stx,00,etx,32,30,status,etx,bcc
+  50          status=Y=0x59 expulso la tarjeta
+  51          status=N=0x4e fallo la expulsion
+  52          status=E=0x45 no hay tarjeta en el lector
+  53          
+  54          ----------------------------------------------------------------------*/
+C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 2   
+
+  55          void eject_card ()
+  56          {
+  57   1        //Debug_txt_Tibbo((unsigned char *) "EJECT CARD \r\n");   
+  58   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+  59   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+  60   1        g_scArrTxComSoft[2]=0x02;     //
+  61   1        g_scArrTxComSoft[3]='2';      // Comando  
+  62   1        g_scArrTxComSoft[4]='0';
+  63   1        g_scArrTxComSoft[5]=ETX;        //
+  64   1        g_scArrTxComSoft[6]=0x01;       // BCC
+  65   1        EscribirCadenaSoft(7);
+  66   1      //--------------------------------------------------------------------
+  67   1        g_cEstadoComSoft=ESPERA_RX;
+  68   1        g_cEstadoComSeqMF=SEQ_RTA_EJECT;
+  69   1        ValTimeOutCom=TIMWPoll;
+  70   1        ID1=ID2=ID3=ID4=0;
+  71   1      }
+  72          
+  73          /*--------------------------------------------------------------------------
+  74          procedimiento
+  75          se envia el cmd check status desde el mc
+  76            el lector creator  debe  responder ASK de recibido 
+  77            y el MC de confirmar con un ENQ
+  78            al tener este dato genera la respuesta 02,00,03,31,30,status(S),03,bcc
+  79            s=N (0x4e) no hay tarjeta en el lector
+  80            s=Y (0x59) tarjeta ene el lector
+  81            -------------------------------------------------------------------------*/
+  82          void Get_Status(void)  
+  83          {
+  84   1      
+  85   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+  86   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+  87   1        g_scArrTxComSoft[2]=0x02;     //
+  88   1        g_scArrTxComSoft[3]='1';      // Comando  
+  89   1        g_scArrTxComSoft[4]='0';        //  
+  90   1        g_scArrTxComSoft[5]=ETX;        //
+  91   1        g_scArrTxComSoft[6]=0x02;       // BCC
+  92   1        EscribirCadenaSoft(7);
+  93   1        g_cEstadoComSoft=ESPERA_RX;
+  94   1        ValTimeOutCom=TIMWPoll;
+  95   1      }
+  96          //********************************************************************************************************
+             -***
+  97          /*capture S/n el numero de la serie of mifare 1 card 02,00,02,35,31,03 bcc*/
+  98          void Select_Card(void)            
+  99          {
+ 100   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+ 101   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+ 102   1        g_scArrTxComSoft[2]=0x02;     //
+ 103   1        g_scArrTxComSoft[3]='5';        //  
+ 104   1        g_scArrTxComSoft[4]='1';        //
+ 105   1        g_scArrTxComSoft[5]=ETX;        //
+ 106   1        g_scArrTxComSoft[6]=0x07;       // BCC
+ 107   1        EscribirCadenaSoft(7);
+ 108   1        g_cEstadoComSoft=ESPERA_RX;
+ 109   1        ValTimeOutCom=TIMWPoll;
+ 110   1      }
+ 111          
+ 112          /*-----------------------------------------------------------------
+ 113          check password se envia 02,00,09,35,32,sector,6byte de password, 03,bcc
+ 114          se programa el pasword en la tarjeta si es ok  debe responder
+ 115          02,00,03,35,32,sector,status,03,bcc
+C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 3   
+
+ 116          status=Y=0x59 que es el ok del password
+ 117          status=N=0x4e error en el password
+ 118          status=E=0x45 no hay tarjeta en el lector
+ 119          
+ 120          -------------------------------------------------------------------*/
+ 121          void LoadPass(void)         
+ 122          {
+ 123   1      
+ 124   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+ 125   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+ 126   1        g_scArrTxComSoft[2]=0x09;     //
+ 127   1        g_scArrTxComSoft[3]='5';        //  
+ 128   1        g_scArrTxComSoft[4]='2';        //
+ 129   1        g_scArrTxComSoft[5]=0x01;       // SECTOR 1  
+ 130   1      
+ 131   1        g_scArrTxComSoft[6]=MEMORY(0011,0011);
+ 132   1        g_scArrTxComSoft[7]=MEMORY(0101,0110);
+ 133   1        g_scArrTxComSoft[8]=MEMORY(0011,0000);
+ 134   1        g_scArrTxComSoft[9]=MEMORY(0111,0000);
+ 135   1        g_scArrTxComSoft[10]=MEMORY(0011,0100);
+ 136   1        g_scArrTxComSoft[11]=MEMORY(0111,0010);
+ 137   1      
+ 138   1        g_scArrTxComSoft[12]=ETX;       //
+ 139   1        g_scArrTxComSoft[13]=0x6d;        // BCC
+ 140   1        EscribirCadenaSoft(14);
+ 141   1      
+ 142   1        g_cEstadoComSoft=ESPERA_RX;
+ 143   1        ValTimeOutCom=TIMWPoll;
+ 144   1      }
+ 145          //********************************************************************************************************
+             -***
+ 146          /*--------------------------------------------------------------------------------------------------------
+             --
+ 147          envio el segundo password de la tarjeta MF50
+ 148          ----------------------------------------------------------------------------------------------------------
+             --*/
+ 149          void LoadPass2(void)          
+ 150          {
+ 151   1      
+ 152   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+ 153   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+ 154   1        g_scArrTxComSoft[2]=0x09;     //
+ 155   1        g_scArrTxComSoft[3]='5';        //  
+ 156   1        g_scArrTxComSoft[4]='2';        //
+ 157   1        g_scArrTxComSoft[5]=0x02;       // SECTOR 2  
+ 158   1      
+ 159   1        g_scArrTxComSoft[6]=MEMORY(0100,0001);
+ 160   1        g_scArrTxComSoft[7]=MEMORY(0110,0011);
+ 161   1        g_scArrTxComSoft[8]=MEMORY(0101,0011);
+ 162   1        g_scArrTxComSoft[9]=MEMORY(0100,0101);
+ 163   1        g_scArrTxComSoft[10]=MEMORY(0111,0110);
+ 164   1        g_scArrTxComSoft[11]=MEMORY(0101,0000);
+ 165   1      
+ 166   1      
+ 167   1        g_scArrTxComSoft[12]=ETX;       //
+ 168   1        g_scArrTxComSoft[13]=0x1F;        // BCC
+ 169   1        EscribirCadenaSoft(14);
+ 170   1      
+ 171   1        g_cEstadoComSoft=ESPERA_RX;
+ 172   1        ValTimeOutCom=TIMWPoll;
+ 173   1      }
+ 174          /*--------------------------------------------------------------------------------------------------------
+C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 4   
+
+             ---
+ 175          read  data on sector
+ 176          se lee el bloque de la tarjeta Mf 
+ 177          host 02,00,04,35,33,sector,bloque,etx,bcc
+ 178          respuesta
+ 179          02,00,15,35,33,sector,bloque,status,16 byte hex,03,bcc
+ 180          status=Y=0x59 que es el ok de lectura de la tarjeta mf50
+ 181          falla
+ 182          02,00,05,35,33,sector,bloque,status,03,bcc
+ 183          status=N=0x4e error en la lectura
+ 184          status=E=0x45 no hay tarjeta en el lector
+ 185          
+ 186          ----------------------------------------------------------------------------------------------------------
+             ---*/
+ 187          void Lea_S1_Block(unsigned char Bloque)  
+ 188          {
+ 189   1        /*read data on sector 02,00,04,35,33,sector,bloque,etx,bcc*/
+ 190   1        unsigned char BCC, j;
+ 191   1        BCC=0;
+ 192   1      
+ 193   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+ 194   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+ 195   1        g_scArrTxComSoft[2]=0x04;     //
+ 196   1        g_scArrTxComSoft[3]='5';      // Comando  
+ 197   1        g_scArrTxComSoft[4]='3';      //  
+ 198   1        g_scArrTxComSoft[5]=0x01;     // SECTOR 1         
+ 199   1        g_scArrTxComSoft[6]=Bloque;     // 
+ 200   1        g_scArrTxComSoft[7]=ETX;        //
+ 201   1        
+ 202   1        for (j=0; j<8; j++)
+ 203   1        {
+ 204   2          BCC=BCC^g_scArrTxComSoft[j];
+ 205   2        }
+ 206   1        
+ 207   1        g_scArrTxComSoft[8]=BCC;        // BCC
+ 208   1        EscribirCadenaSoft(9);
+ 209   1      
+ 210   1          g_cEstadoComSoft=ESPERA_RX;
+ 211   1        ValTimeOutCom=TIMWPoll;
+ 212   1      }
+ 213          
+ 214          //********************************************************************************************************
+             -***
+ 215          
+ 216          //********************************************************************************************************
+             -***
+ 217          void Select_S2_Block(unsigned char Bloque)   
+ 218          {
+ 219   1        unsigned char BCC, j;
+ 220   1        BCC=0;
+ 221   1      
+ 222   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+ 223   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+ 224   1        g_scArrTxComSoft[2]=0x04;     //
+ 225   1        g_scArrTxComSoft[3]='5';      // Comando  
+ 226   1        g_scArrTxComSoft[4]='3';      //  
+ 227   1        g_scArrTxComSoft[5]=0x02;     // SECTOR 2         
+ 228   1        g_scArrTxComSoft[6]=Bloque;     // 
+ 229   1        g_scArrTxComSoft[7]=ETX;        //
+ 230   1        
+ 231   1        for (j=0; j<8; j++)
+ 232   1        {
+C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 5   
+
+ 233   2          BCC=BCC^g_scArrTxComSoft[j];
+ 234   2        }
+ 235   1        
+ 236   1        g_scArrTxComSoft[8]=BCC;        // BCC
+ 237   1        EscribirCadenaSoft(9);
+ 238   1      
+ 239   1          g_cEstadoComSoft=ESPERA_RX;
+ 240   1        ValTimeOutCom=TIMWPoll;
+ 241   1      }
+ 242          /*--------------------------------------------------------------------------------------------------------
+             ---
+ 243          rutina que escribe datos en un sector
+ 244          host stx,null,0x14,35,34,sector,bloque,16 byte hex data , etx,bcc
+ 245          reader
+ 246          stx,null,0x15,35,34,sector no,bloque No,P,16 byte hex data, etx,bcc
+ 247          
+ 248          P='Y' 0(0x59) ok
+ 249          P='N'=(0x4e) error
+ 250          P='E'=(0x45) no hay tarjeta en el lector
+ 251          ----------------------------------------------------------------------------------------------------------
+             ---*/
+ 252          
+ 253          void Graba_S1_BloqueSel(unsigned char Bloque)  
+ 254          {
+ 255   1        unsigned char BCC, j;
+ 256   1      
+ 257   1        BCC=0;
+ 258   1      
+ 259   1        g_scArrTxComSoft[0]=STX;      // Caracter de Inicio
+ 260   1        g_scArrTxComSoft[1]=0x00;     // Longitud (2 Bytes)
+ 261   1        g_scArrTxComSoft[2]=0x14;     //
+ 262   1        g_scArrTxComSoft[3]='5';      // Comando  
+ 263   1        g_scArrTxComSoft[4]='4';      //  
+ 264   1        g_scArrTxComSoft[5]=0x01;     // SECTOR 1         
+ 265   1        g_scArrTxComSoft[6]=Bloque;     // 
+ 266   1      
+ 267   1        for (j=0; j<16; j++)
+ 268   1        {
+ 269   2          g_scArrTxComSoft[j+7]=BufferWrite_MF[j];
+ 270   2        }
+ 271   1      
+ 272   1        g_scArrTxComSoft[23]=ETX;       //
+ 273   1        
+ 274   1        for (j=0; j<24; j++)
+ 275   1        {
+ 276   2          BCC=BCC^g_scArrTxComSoft[j];
+ 277   2        }
+ 278   1        
+ 279   1        g_scArrTxComSoft[24]=BCC;       // BCC
+ 280   1        EscribirCadenaSoft(25);
+ 281   1      
+ 282   1          g_cEstadoComSoft=ESPERA_RX;
+ 283   1        ValTimeOutCom=TIMWPoll;
+ 284   1      }
+ 285          /*FUNCIONES DEL QR*/
+ 286          /*---------------------------------------------------------------------------------
+ 287          funcion que debuelve la posicion del inicio del primer caracter de numerico de 0 a 9
+ 288          -----------------------------------------------------------------------------------*/
+ 289          unsigned char num_num(unsigned char * p)  
+ 290          {
+ 291   1      unsigned char contador=0;
+ 292   1        while ((*p < 0x30)|| (*p > 0x39))
+C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 6   
+
+ 293   1        {
+ 294   2          
+ 295   2          p++;
+ 296   2          contador++;
+ 297   2        }
+ 298   1        return contador;
+ 299   1      }   
+ 300          /*---------------------------------------------------------------------------------
+ 301          definiciones de la pantalla
+ 302          -----------------------------------------------------------------------------------*/
+ 303          unsigned char num_char(unsigned char * p,unsigned char chr) 
+ 304          {
+ 305   1      unsigned char contador=0;
+ 306   1        while (*p !=chr)
+ 307   1        {
+ 308   2          
+ 309   2          p++;
+ 310   2          contador++;
+ 311   2        }
+ 312   1        return contador;
+ 313   1      } 
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    670    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
