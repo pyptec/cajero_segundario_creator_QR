@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   PTOPRLELO                                                         03/02/2020 12:27:56 PAGE 1   
+C51 COMPILER V9.59.0.0   PTOPRLELO                                                         11/25/2021 12:37:17 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE PTOPRLELO
@@ -62,7 +62,7 @@ line level    source
   52          }
   53          */ 
   54          //***************************************************************************************************
-C51 COMPILER V9.59.0.0   PTOPRLELO                                                         03/02/2020 12:27:56 PAGE 2   
+C51 COMPILER V9.59.0.0   PTOPRLELO                                                         11/25/2021 12:37:17 PAGE 2   
 
   55          void wait (void)  {                         
   56   1        ;                                         
@@ -126,7 +126,7 @@ line level    source
  112   4            }
  113   3            if (busy==1)
  114   3            {
-C51 COMPILER V9.59.0.0   PTOPRLELO                                                         03/02/2020 12:27:56 PAGE 3   
+C51 COMPILER V9.59.0.0   PTOPRLELO                                                         11/25/2021 12:37:17 PAGE 3   
 
  115   4              j=31;
  116   4            }

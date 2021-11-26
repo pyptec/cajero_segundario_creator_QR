@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 1   
+C51 COMPILER V9.59.0.0   CRT_288                                                           11/25/2021 12:37:17 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE CRT_288
@@ -62,7 +62,7 @@ line level    source
   52          status=E=0x45 no hay tarjeta en el lector
   53          
   54          ----------------------------------------------------------------------*/
-C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 2   
+C51 COMPILER V9.59.0.0   CRT_288                                                           11/25/2021 12:37:17 PAGE 2   
 
   55          void eject_card ()
   56          {
@@ -126,7 +126,7 @@ line level    source
  113          check password se envia 02,00,09,35,32,sector,6byte de password, 03,bcc
  114          se programa el pasword en la tarjeta si es ok  debe responder
  115          02,00,03,35,32,sector,status,03,bcc
-C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 3   
+C51 COMPILER V9.59.0.0   CRT_288                                                           11/25/2021 12:37:17 PAGE 3   
 
  116          status=Y=0x59 que es el ok del password
  117          status=N=0x4e error en el password
@@ -190,7 +190,7 @@ line level    source
  172   1        ValTimeOutCom=TIMWPoll;
  173   1      }
  174          /*--------------------------------------------------------------------------------------------------------
-C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 4   
+C51 COMPILER V9.59.0.0   CRT_288                                                           11/25/2021 12:37:17 PAGE 4   
 
              ---
  175          read  data on sector
@@ -254,7 +254,7 @@ line level    source
  230   1        
  231   1        for (j=0; j<8; j++)
  232   1        {
-C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 5   
+C51 COMPILER V9.59.0.0   CRT_288                                                           11/25/2021 12:37:17 PAGE 5   
 
  233   2          BCC=BCC^g_scArrTxComSoft[j];
  234   2        }
@@ -318,7 +318,7 @@ line level    source
  290          {
  291   1      unsigned char contador=0;
  292   1        while ((*p < 0x30)|| (*p > 0x39))
-C51 COMPILER V9.59.0.0   CRT_288                                                           03/02/2020 12:27:56 PAGE 6   
+C51 COMPILER V9.59.0.0   CRT_288                                                           11/25/2021 12:37:17 PAGE 6   
 
  293   1        {
  294   2          

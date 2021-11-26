@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 1   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE CREATOR
@@ -62,7 +62,7 @@ line level    source
   52   1        decena=0;
   53   1        unidad=0;
   54   1        numero=valorhex;
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 2   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 2   
 
   55   1        numero=numero&0xf0;
   56   1        numero>>=4;
@@ -126,7 +126,7 @@ line level    source
  114   1      }
  115          //**************************************************************************************************
  116          //*******************************************************************************************
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 3   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 3   
 
  117          void ve_id(unsigned char id_h,unsigned char id_l)
  118          {
@@ -190,7 +190,7 @@ line level    source
  176   2           buffer_ticket[num_data++]=(decena|0x30);
  177   2           buffer_ticket[num_data++]=(unidad|0x30);
  178   2        }
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 4   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 4   
 
  179   1        else if (centena!=0)
  180   1        {
@@ -254,7 +254,7 @@ line level    source
  238            if ((timeOut==0)&&(busy==0))
  239            {
  240              for (j=0; j<NumChar; j++)
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 5   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 5   
 
  241              {
  242                P2=buffer_ticket[j];
@@ -318,7 +318,7 @@ line level    source
  293   2          buffer_ticket[4]=CodError;
  294   2          buffer_ticket[5]=ETX;
  295   2          Send_Port(6);
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 6   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 6   
 
  296   2        }
  297   1      //--------------------------------------------------------------------
@@ -382,7 +382,7 @@ line level    source
  352   1        Hex_Str(g_scArrRxComSoft[11]);      // Hora Entrada
  353   1        g_scDATE[6]=decena;
  354   1        g_scDATE[7]=unidad;
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 7   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 7   
 
  355   1                                    
  356   1        Hex_Str(g_scArrRxComSoft[12]);      // Minuto Entrada
@@ -446,7 +446,7 @@ line level    source
  414          
  415          //*******************************************************************************************
  416          
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 8   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 8   
 
  417          //*******************************************************************************************
  418          //*******************************************************************************************
@@ -510,7 +510,7 @@ line level    source
  476   1      //------------------------------------------------------------------------------------------*
  477   1        g_cEstadoComSoft=ESPERA_RX;
  478   1        g_cEstadoComSeqMF=SEQ_INICIO;
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 9   
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 9   
 
  479   1        ValTimeOutCom=TIMWPoll;       //                          *
  480   1        TIME_ESPERA=0;
@@ -533,447 +533,448 @@ line level    source
  497   2          P2=0xff;
  498   2          cod_alarm=P2;
  499   2          txd2=1;
- 500   2          if(esQR==1){sel_com=PuertoMF;}
- 501   2          else{ sel_com=PuertoDB9;}     //PuertoMF;
- 502   2      //------------------------------------------------------------------------------------------*
- 503   2          ProcesoLector();
- 504   2      //------------------------------------------------------------------------------------------* 
- 505   2          /*  while(1)
- 506   2            {
- 507   2                  
- 508   2                  buffer_ticket[0]='h';
- 509   2                  buffer_ticket[1]='o';
- 510   2                  buffer_ticket[2]='l';
- 511   2                  buffer_ticket[3]='A';
- 512   2                  buffer_ticket[4]=' ';
- 513   2                  buffer_ticket[5]=ETX;
- 514   2                  Send_Port(6);
- 515   2            }       
- 516   2        */    
- 517   2      //    if (buffer_ready==1)
- 518   2      //    {
- 519   2      //      buffer_ready=0;
- 520   2      //      sel_com=PuertoMF;           // Solo comn propositos de prueba PortMifare
- 521   2      //      for(k=0;k<g_cContByteRx;k++)
- 522   2      //      {
- 523   2      //            tx_chr(g_scArrRxComSoft[k]);
- 524   2      //        }
- 525   2      //      tx_chr(CR);
- 526   2      //      tx_chr(LF);
- 527   2      //      while (sendactive==1) 
- 528   2      //      {
- 529   2      //      }
- 530   2      //      sel_com=PuertoDB9;
- 531   2      //    }
- 532   2      //------------------------------------------------------------------------------------------*
+ 500   2          sel_com=PuertoDB9;
+ 501   2        //  if(esQR==1){sel_com=PuertoMF;}
+ 502   2      //    else{ sel_com=PuertoDB9;}     //PuertoMF;
+ 503   2      //------------------------------------------------------------------------------------------*
+ 504   2          ProcesoLector();
+ 505   2      //------------------------------------------------------------------------------------------* 
+ 506   2          /*  while(1)
+ 507   2            {
+ 508   2                  
+ 509   2                  buffer_ticket[0]='h';
+ 510   2                  buffer_ticket[1]='o';
+ 511   2                  buffer_ticket[2]='l';
+ 512   2                  buffer_ticket[3]='A';
+ 513   2                  buffer_ticket[4]=' ';
+ 514   2                  buffer_ticket[5]=ETX;
+ 515   2                  Send_Port(6);
+ 516   2            }       
+ 517   2        */    
+ 518   2      //    if (buffer_ready==1)
+ 519   2      //    {
+ 520   2      //      buffer_ready=0;
+ 521   2      //      sel_com=PuertoMF;           // Solo comn propositos de prueba PortMifare
+ 522   2      //      for(k=0;k<g_cContByteRx;k++)
+ 523   2      //      {
+ 524   2      //            tx_chr(g_scArrRxComSoft[k]);
+ 525   2      //        }
+ 526   2      //      tx_chr(CR);
+ 527   2      //      tx_chr(LF);
+ 528   2      //      while (sendactive==1) 
+ 529   2      //      {
+ 530   2      //      }
+ 531   2      //      sel_com=PuertoDB9;
+ 532   2      //    }
  533   2      //------------------------------------------------------------------------------------------*
- 534   2          if(TF0==1)
- 535   2          {
- 536   3            TF0=0;
- 537   3       
- 538   3      //--------------------------------------------------------- 
- 539   3              if (ValTimeOutCom!=0)
- 540   3            {
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 10  
+ 534   2      //------------------------------------------------------------------------------------------*
+ 535   2          if(TF0==1)
+ 536   2          {
+ 537   3            TF0=0;
+ 538   3       
+ 539   3      //--------------------------------------------------------- 
+ 540   3              if (ValTimeOutCom!=0)
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 10  
 
- 541   4              ValTimeOutCom--;
- 542   4              if (TxENQ==1)                                 /*si recibo un ASK significa q transmiti un dato espera la confirmacion 
+ 541   3            {
+ 542   4              ValTimeOutCom--;
+ 543   4              if (TxENQ==1)                                 /*si recibo un ASK significa q transmiti un dato espera la confirmacion 
              -q es un ENQ*/
- 543   4              {
- 544   5                if(esQR==0)                                 /*significa q la prioridad es el lector creator*/
- 545   5                {
- 546   6                tx_chr(ENQ);
- 547   6                TxENQ=0;
- 548   6                ValTimeOutCom=TIMWPoll;
- 549   6                g_cEstadoComSoft=ESPERA_INICIO_RTA;
- 550   6                }
- 551   5              }
- 552   4              
- 553   4            }
- 554   3      //---------------------------------------------------------
- 555   3            if (TIME_ESPERA!=0)
- 556   3            {
- 557   4              TIME_ESPERA--;
- 558   4            }
- 559   3      //---------------------------------------------------------
- 560   3            seg--;
- 561   3            if (seg==0)
- 562   3            {
- 563   4      
- 564   4                    if (((alarma1==1)||(alarma2==1)||(alarma3==1))&&(onceAlarm==0))
- 565   4                {
- 566   5                  onceAlarm=1;
- 567   5              
- 568   5                  cod_alarm=0x30;
- 569   5                  if (alarma1==1)
- 570   5                  {
- 571   6                    cod_alarm++;
- 572   6                    AlarmaPrevia1=1;
- 573   6                  }
- 574   5                  if (alarma2==1)
- 575   5                  {
- 576   6                    cod_alarm++;
+ 544   4              {
+ 545   5                if(esQR==0)                                 /*significa q la prioridad es el lector creator*/
+ 546   5                {
+ 547   6                tx_chr(ENQ);
+ 548   6                TxENQ=0;
+ 549   6                ValTimeOutCom=TIMWPoll;
+ 550   6                g_cEstadoComSoft=ESPERA_INICIO_RTA;
+ 551   6                }
+ 552   5              }
+ 553   4              
+ 554   4            }
+ 555   3      //---------------------------------------------------------
+ 556   3            if (TIME_ESPERA!=0)
+ 557   3            {
+ 558   4              TIME_ESPERA--;
+ 559   4            }
+ 560   3      //---------------------------------------------------------
+ 561   3            seg--;
+ 562   3            if (seg==0)
+ 563   3            {
+ 564   4      
+ 565   4                    if (((alarma1==1)||(alarma2==1)||(alarma3==1))&&(onceAlarm==0))
+ 566   4                {
+ 567   5                  onceAlarm=1;
+ 568   5              
+ 569   5                  cod_alarm=0x30;
+ 570   5                  if (alarma1==1)
+ 571   5                  {
+ 572   6                    cod_alarm++;
+ 573   6                    AlarmaPrevia1=1;
+ 574   6                  }
+ 575   5                  if (alarma2==1)
+ 576   5                  {
  577   6                    cod_alarm++;
- 578   6                    AlarmaPrevia2=1;  
- 579   6                  }
- 580   5                  if (alarma3==1)
- 581   5                  {
- 582   6                    cod_alarm++;
+ 578   6                    cod_alarm++;
+ 579   6                    AlarmaPrevia2=1;  
+ 580   6                  }
+ 581   5                  if (alarma3==1)
+ 582   5                  {
  583   6                    cod_alarm++;
  584   6                    cod_alarm++;
  585   6                    cod_alarm++;
- 586   6                    AlarmaPrevia3=1;
- 587   6                  }                   
- 588   5                  
- 589   5        
+ 586   6                    cod_alarm++;
+ 587   6                    AlarmaPrevia3=1;
+ 588   6                  }                   
+ 589   5                  
  590   5        
  591   5        
- 592   5                  buffer_ticket[0]=STX;
- 593   5                  buffer_ticket[1]='0';
- 594   5                  buffer_ticket[2]=0X06;
- 595   5                  buffer_ticket[3]='A';
- 596   5                  buffer_ticket[4]=cod_alarm;
- 597   5                  buffer_ticket[5]=ETX;
- 598   5                  Send_Port(6);
- 599   5                }
- 600   4      
+ 592   5        
+ 593   5                  buffer_ticket[0]=STX;
+ 594   5                  buffer_ticket[1]='0';
+ 595   5                  buffer_ticket[2]=0X06;
+ 596   5                  buffer_ticket[3]='A';
+ 597   5                  buffer_ticket[4]=cod_alarm;
+ 598   5                  buffer_ticket[5]=ETX;
+ 599   5                  Send_Port(6);
+ 600   5                }
  601   4      
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 11  
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 11  
 
  602   4      
- 603   4         
- 604   4              seg=CTE_SEG;
- 605   4                if (blink==0)
- 606   4              {
- 607   5                led_err=1;
- 608   5                blink=1;
- 609   5              }
- 610   4              else
- 611   4              {
- 612   5                led_err=0;
- 613   5                blink=0;
- 614   5              }
- 615   4      //        lock=0;
- 616   4      //------------------------------------------------------------------------------------------*
- 617   4      //        iData=TABLE_CRC16_R[j];
- 618   4      //        tx_chr2bytes(iData);
- 619   4      //        j++;
- 620   4      //------------------------------------------------------------------------------------------*
- 621   4            }
- 622   3          }                     // if(TF0==1)
- 623   2      //------------------------------------------------------------------------------------------*
- 624   2      //    sel_Funcion();
- 625   2      //    if ((DataIn==0)&&(info==0))
- 626   2      //    {
- 627   2      //      if (busy==1)
- 628   2      //      {
- 629   2      //        info=1;
- 630   2      //        rx_in_data=0;
- 631   2      //        load_info();
- 632   2      //        send_info();
- 633   2      //        rx_in_data=1;
- 634   2      //      }
- 635   2      //    }
- 636   2      //    sel_Funcion();
- 637   2      //    if (DataIn==1)
- 638   2      //    {
- 639   2      //      info=0;
- 640   2      //    }
- 641   2      //------------------------------------------------------------------------------------------*
- 642   2      //    sel_Sensor1();
- 643   2      //    if (DataIn==0)
- 644   2      //    {
- 645   2      //    }
- 646   2      //    sel_Sensor2();
- 647   2      //    if (DataIn==0)
- 648   2      //    {
- 649   2      //    }
- 650   2      //-------------------------------------------------------------------------------------------*
- 651   2      /////////////////////////////////////////////////////////////////////////////////////////////
- 652   2      
- 653   2          if ((g_cEstadoComSeqMF!=SEQ_WCMD)&&(g_cEstadoComSeqMF!=SEQ_RTA_STATUSout)&&(Expulsa_Grabacion==0))
- 654   2          {
- 655   3            if (busy==0)
- 656   3            {
- 657   4                recibe_port();
- 658   4              if (buffer_ticket[3]=='O')
- 659   4              {
- 660   5      
- 661   5                Eject_Card(CARD_EJECT);
- 662   5      
- 663   5                if (num_data==5)
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 12  
+ 603   4      
+ 604   4         
+ 605   4              seg=CTE_SEG;
+ 606   4                if (blink==0)
+ 607   4              {
+ 608   5                led_err=1;
+ 609   5                blink=1;
+ 610   5              }
+ 611   4              else
+ 612   4              {
+ 613   5                led_err=0;
+ 614   5                blink=0;
+ 615   5              }
+ 616   4      //        lock=0;
+ 617   4      //------------------------------------------------------------------------------------------*
+ 618   4      //        iData=TABLE_CRC16_R[j];
+ 619   4      //        tx_chr2bytes(iData);
+ 620   4      //        j++;
+ 621   4      //------------------------------------------------------------------------------------------*
+ 622   4            }
+ 623   3          }                     // if(TF0==1)
+ 624   2      //------------------------------------------------------------------------------------------*
+ 625   2      //    sel_Funcion();
+ 626   2      //    if ((DataIn==0)&&(info==0))
+ 627   2      //    {
+ 628   2      //      if (busy==1)
+ 629   2      //      {
+ 630   2      //        info=1;
+ 631   2      //        rx_in_data=0;
+ 632   2      //        load_info();
+ 633   2      //        send_info();
+ 634   2      //        rx_in_data=1;
+ 635   2      //      }
+ 636   2      //    }
+ 637   2      //    sel_Funcion();
+ 638   2      //    if (DataIn==1)
+ 639   2      //    {
+ 640   2      //      info=0;
+ 641   2      //    }
+ 642   2      //------------------------------------------------------------------------------------------*
+ 643   2      //    sel_Sensor1();
+ 644   2      //    if (DataIn==0)
+ 645   2      //    {
+ 646   2      //    }
+ 647   2      //    sel_Sensor2();
+ 648   2      //    if (DataIn==0)
+ 649   2      //    {
+ 650   2      //    }
+ 651   2      //-------------------------------------------------------------------------------------------*
+ 652   2      /////////////////////////////////////////////////////////////////////////////////////////////
+ 653   2      
+ 654   2          if ((g_cEstadoComSeqMF!=SEQ_WCMD)&&(g_cEstadoComSeqMF!=SEQ_RTA_STATUSout)&&(Expulsa_Grabacion==0))
+ 655   2          {
+ 656   3            if (busy==0)
+ 657   3            {
+ 658   4                recibe_port();
+ 659   4              if (buffer_ticket[3]=='O')
+ 660   4              {
+ 661   5      
+ 662   5                Eject_Card(CARD_EJECT);
+ 663   5      
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 12  
 
- 664   5                {
- 665   6      //            Eject_Card(CARD_EJECT);
- 666   6      
- 667   6                }
- 668   5                else if (num_data==16)
- 669   5                {
- 670   6      //-------------------------------------------------------------------------------------------*
- 671   6                    tx_aux('S');
- 672   6                    tx_aux('I');
- 673   6                    tx_aux('N');
- 674   6                    tx_aux(' ');
- 675   6                    tx_aux('T');
- 676   6                    tx_aux('A');
- 677   6                    tx_aux('R');
- 678   6                    tx_aux('J');
- 679   6                    tx_aux('E');
- 680   6                    tx_aux('T');
- 681   6                    tx_aux('A');
- 682   6                    tx_aux(' ');
- 683   6      
+ 664   5                if (num_data==5)
+ 665   5                {
+ 666   6      //            Eject_Card(CARD_EJECT);
+ 667   6      
+ 668   6                }
+ 669   5                else if (num_data==16)
+ 670   5                {
+ 671   6      //-------------------------------------------------------------------------------------------*
+ 672   6                    tx_aux('S');
+ 673   6                    tx_aux('I');
+ 674   6                    tx_aux('N');
+ 675   6                    tx_aux(' ');
+ 676   6                    tx_aux('T');
+ 677   6                    tx_aux('A');
+ 678   6                    tx_aux('R');
+ 679   6                    tx_aux('J');
+ 680   6                    tx_aux('E');
+ 681   6                    tx_aux('T');
+ 682   6                    tx_aux('A');
+ 683   6                    tx_aux(' ');
  684   6      
  685   6      
- 686   6                    tx_aux('P');
- 687   6                    tx_aux('C');
- 688   6                    tx_aux(':');
- 689   6                    for (k=0; k<16; k++)
- 690   6                    {
- 691   7                      tx_aux(buffer_ticket[k]); 
- 692   7                    }
- 693   6                    tx_aux(CR);
- 694   6                    tx_aux(LF);
- 695   6      //-------------------------------------------------------------------------------------------*            
- 696   6                }
- 697   5        
- 698   5              }
- 699   4              else if (buffer_ticket[3]=='o')
- 700   4              {
- 701   5                GrabaTarjeta=0;
- 702   5                Desarmado=0;
- 703   5                Permite_Puerta=0;
- 704   5                Permite_Billetero=0;
- 705   5                Permite_Monedero=0;
- 706   5                NotifyCofreCoin=0;
- 707   5                NotifyCofreB2B=0;
- 708   5                NotifyPuerta=0;
- 709   5                }
- 710   4              else if (buffer_ticket[3]=='F')
- 711   4              {
- 712   5                FueraServicio=1;
- 713   5                }
- 714   4              else if (buffer_ticket[3]=='E')
- 715   4              {
- 716   5                FueraServicio=0;
- 717   5                AlarmaPrevia1=0;
- 718   5                AlarmaPrevia2=0;
- 719   5                AlarmaPrevia3=0;
- 720   5                GrabaTarjeta=0;
- 721   5                Desarmado=0;
- 722   5                lock=0;
- 723   5                onceAlarm=0;
- 724   5                alarma1=0;
- 725   5                alarma2=0;
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 13  
+ 686   6      
+ 687   6                    tx_aux('P');
+ 688   6                    tx_aux('C');
+ 689   6                    tx_aux(':');
+ 690   6                    for (k=0; k<16; k++)
+ 691   6                    {
+ 692   7                      tx_aux(buffer_ticket[k]); 
+ 693   7                    }
+ 694   6                    tx_aux(CR);
+ 695   6                    tx_aux(LF);
+ 696   6      //-------------------------------------------------------------------------------------------*            
+ 697   6                }
+ 698   5        
+ 699   5              }
+ 700   4              else if (buffer_ticket[3]=='o')
+ 701   4              {
+ 702   5                GrabaTarjeta=0;
+ 703   5                Desarmado=0;
+ 704   5                Permite_Puerta=0;
+ 705   5                Permite_Billetero=0;
+ 706   5                Permite_Monedero=0;
+ 707   5                NotifyCofreCoin=0;
+ 708   5                NotifyCofreB2B=0;
+ 709   5                NotifyPuerta=0;
+ 710   5                }
+ 711   4              else if (buffer_ticket[3]=='F')
+ 712   4              {
+ 713   5                FueraServicio=1;
+ 714   5                }
+ 715   4              else if (buffer_ticket[3]=='E')
+ 716   4              {
+ 717   5                FueraServicio=0;
+ 718   5                AlarmaPrevia1=0;
+ 719   5                AlarmaPrevia2=0;
+ 720   5                AlarmaPrevia3=0;
+ 721   5                GrabaTarjeta=0;
+ 722   5                Desarmado=0;
+ 723   5                lock=0;
+ 724   5                onceAlarm=0;
+ 725   5                alarma1=0;
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 13  
 
- 726   5                alarma3=0;
- 727   5                Permite_Puerta=0;
- 728   5                Permite_Billetero=0;
- 729   5                Permite_Monedero=0;
- 730   5                NotifyCofreCoin=0;
- 731   5                NotifyCofreB2B=0;
- 732   5                NotifyPuerta=0;
- 733   5                }
- 734   4      
- 735   4              else if (buffer_ticket[3]=='?')
- 736   4              {
- 737   5                buffer_ticket[0]=STX;
- 738   5                buffer_ticket[1]='0';
- 739   5                buffer_ticket[2]=0X06;
- 740   5                buffer_ticket[3]='e';
- 741   5                buffer_ticket[4]=0x40;        //Tarjeta Mal Insertada
- 742   5                buffer_ticket[5]=ETX;
- 743   5                Send_Port(6);     
- 744   5                }
- 745   4            }         
- 746   3          }
- 747   2                                       
- 748   2                                                     
- 749   2      /////////////////////////////////////////////////////////////////////////////////////////////
- 750   2      //*******************************************************************************************
- 751   2      //      ALARMAS
- 752   2      //*******************************************************************************************
- 753   2      //    sel_Sensor1();
- 754   2      //    if ((DataIn==1)&&(Permite_Puerta==0))
- 755   2      //    {
- 756   2      //      lock=1;
- 757   2      //      alarma1=1;
- 758   2      //    }
- 759   2      //-------------------------------------------------------
- 760   2          Tmin=2500;
- 761   2          Activo=0;
- 762   2          sel_Sensor1();
- 763   2          if (DataIn==1)
- 764   2          {
- 765   3            sel_Sensor1();
- 766   3            if (DataIn==1)
- 767   3            {
- 768   4              while ((DataIn==1)&&(Activo==0))
- 769   4              {
- 770   5                Tmin--;
- 771   5                if (Tmin==0)
- 772   5                {
- 773   6                  Activo=1;
- 774   6                }
- 775   5      
- 776   5              }
- 777   4              if ((Activo==1)&&(Permite_Puerta==0))
- 778   4              {
- 779   5                lock=1;
- 780   5                alarma1=1;
- 781   5              }
- 782   4            }
- 783   3          }
- 784   2      //-------------------------------------------------------
- 785   2      //    sel_Sensor2();
- 786   2      //    if ((DataIn==1)&&(Permite_Billetero==0))
- 787   2      //    {
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 14  
+ 726   5                alarma2=0;
+ 727   5                alarma3=0;
+ 728   5                Permite_Puerta=0;
+ 729   5                Permite_Billetero=0;
+ 730   5                Permite_Monedero=0;
+ 731   5                NotifyCofreCoin=0;
+ 732   5                NotifyCofreB2B=0;
+ 733   5                NotifyPuerta=0;
+ 734   5                }
+ 735   4      
+ 736   4              else if (buffer_ticket[3]=='?')
+ 737   4              {
+ 738   5                buffer_ticket[0]=STX;
+ 739   5                buffer_ticket[1]='0';
+ 740   5                buffer_ticket[2]=0X06;
+ 741   5                buffer_ticket[3]='e';
+ 742   5                buffer_ticket[4]=0x40;        //Tarjeta Mal Insertada
+ 743   5                buffer_ticket[5]=ETX;
+ 744   5                Send_Port(6);     
+ 745   5                }
+ 746   4            }         
+ 747   3          }
+ 748   2                                       
+ 749   2                                                     
+ 750   2      /////////////////////////////////////////////////////////////////////////////////////////////
+ 751   2      //*******************************************************************************************
+ 752   2      //      ALARMAS
+ 753   2      //*******************************************************************************************
+ 754   2      //    sel_Sensor1();
+ 755   2      //    if ((DataIn==1)&&(Permite_Puerta==0))
+ 756   2      //    {
+ 757   2      //      lock=1;
+ 758   2      //      alarma1=1;
+ 759   2      //    }
+ 760   2      //-------------------------------------------------------
+ 761   2          Tmin=2500;
+ 762   2          Activo=0;
+ 763   2          sel_Sensor1();
+ 764   2          if (DataIn==1)
+ 765   2          {
+ 766   3            sel_Sensor1();
+ 767   3            if (DataIn==1)
+ 768   3            {
+ 769   4              while ((DataIn==1)&&(Activo==0))
+ 770   4              {
+ 771   5                Tmin--;
+ 772   5                if (Tmin==0)
+ 773   5                {
+ 774   6                  Activo=1;
+ 775   6                }
+ 776   5      
+ 777   5              }
+ 778   4              if ((Activo==1)&&(Permite_Puerta==0))
+ 779   4              {
+ 780   5                lock=1;
+ 781   5                alarma1=1;
+ 782   5              }
+ 783   4            }
+ 784   3          }
+ 785   2      //-------------------------------------------------------
+ 786   2      //    sel_Sensor2();
+ 787   2      //    if ((DataIn==1)&&(Permite_Billetero==0))
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 14  
 
- 788   2      //      lock=1;
- 789   2      //      alarma2=1;
- 790   2      //    }
- 791   2      //--------------------------------------------------------
- 792   2          Tmin=2500;
- 793   2          Activo=0;
- 794   2          sel_Sensor2();
- 795   2          if (DataIn==1)
- 796   2          {
- 797   3            sel_Sensor2();
- 798   3            if (DataIn==1)
- 799   3            {
- 800   4              while ((DataIn==1)&&(Activo==0))
- 801   4              {
- 802   5                Tmin--;
- 803   5                if (Tmin==0)
- 804   5                {
- 805   6                  Activo=1;
- 806   6                }
- 807   5              }
- 808   4              if ((Activo==1)&&(Permite_Billetero==0))
- 809   4              {
- 810   5                lock=1;
- 811   5                alarma2=1;
- 812   5              }
- 813   4            }
- 814   3          }
- 815   2      //*********************************************************
- 816   2      //    sel_Pulsa();
- 817   2      //    if ((DataIn==1)&&(Permite_Monedero==0))
- 818   2      //    {
- 819   2      //      lock=1;
- 820   2      //      alarma3=1;
- 821   2      //    }
- 822   2      //---------------------------------------------------------
- 823   2          Tmin=2500;
- 824   2          Activo=0;
- 825   2          sel_Pulsa();
- 826   2          if (DataIn==1)
- 827   2          {
- 828   3            sel_Pulsa();
- 829   3            if (DataIn==1)
- 830   3            {
- 831   4              while ((DataIn==1)&&(Activo==0))
- 832   4              {
- 833   5                Tmin--;
- 834   5                if (Tmin==0)
- 835   5                {
- 836   6                  Activo=1;
- 837   6                }
- 838   5              }
- 839   4              if ((Activo==1)&&(Permite_Monedero==0))
- 840   4              {
- 841   5                lock=1;
- 842   5                alarma3=1;
- 843   5              }
- 844   4            }
- 845   3          }
- 846   2      //********************************************************        
- 847   2      
- 848   2          if ((Permite_Puerta==1)&&(Permite_Billetero==1)&&(Permite_Monedero==1))
- 849   2          {
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 15  
+ 788   2      //    {
+ 789   2      //      lock=1;
+ 790   2      //      alarma2=1;
+ 791   2      //    }
+ 792   2      //--------------------------------------------------------
+ 793   2          Tmin=2500;
+ 794   2          Activo=0;
+ 795   2          sel_Sensor2();
+ 796   2          if (DataIn==1)
+ 797   2          {
+ 798   3            sel_Sensor2();
+ 799   3            if (DataIn==1)
+ 800   3            {
+ 801   4              while ((DataIn==1)&&(Activo==0))
+ 802   4              {
+ 803   5                Tmin--;
+ 804   5                if (Tmin==0)
+ 805   5                {
+ 806   6                  Activo=1;
+ 807   6                }
+ 808   5              }
+ 809   4              if ((Activo==1)&&(Permite_Billetero==0))
+ 810   4              {
+ 811   5                lock=1;
+ 812   5                alarma2=1;
+ 813   5              }
+ 814   4            }
+ 815   3          }
+ 816   2      //*********************************************************
+ 817   2      //    sel_Pulsa();
+ 818   2      //    if ((DataIn==1)&&(Permite_Monedero==0))
+ 819   2      //    {
+ 820   2      //      lock=1;
+ 821   2      //      alarma3=1;
+ 822   2      //    }
+ 823   2      //---------------------------------------------------------
+ 824   2          Tmin=2500;
+ 825   2          Activo=0;
+ 826   2          sel_Pulsa();
+ 827   2          if (DataIn==1)
+ 828   2          {
+ 829   3            sel_Pulsa();
+ 830   3            if (DataIn==1)
+ 831   3            {
+ 832   4              while ((DataIn==1)&&(Activo==0))
+ 833   4              {
+ 834   5                Tmin--;
+ 835   5                if (Tmin==0)
+ 836   5                {
+ 837   6                  Activo=1;
+ 838   6                }
+ 839   5              }
+ 840   4              if ((Activo==1)&&(Permite_Monedero==0))
+ 841   4              {
+ 842   5                lock=1;
+ 843   5                alarma3=1;
+ 844   5              }
+ 845   4            }
+ 846   3          }
+ 847   2      //********************************************************        
+ 848   2      
+ 849   2          if ((Permite_Puerta==1)&&(Permite_Billetero==1)&&(Permite_Monedero==1))
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 15  
 
- 850   3            lock=0;
- 851   3            onceAlarm=0;
- 852   3            alarma1=0;
- 853   3            alarma2=0;
- 854   3            alarma3=0;
- 855   3          }
- 856   2        
- 857   2      //*******************************************************************************************
- 858   2      //    Notificacion de Aperturas en Desarmado
- 859   2      //*******************************************************************************************
- 860   2          if ((Desarmado==1))
- 861   2          {
- 862   3            sel_Sensor1();
- 863   3            if ((DataIn==1)&&(NotifyPuerta==0)&&(AlarmaPrevia1==0))
- 864   3            {
- 865   4              NotifyPuerta=1;
- 866   4      
- 867   4              buffer_ticket[0]=STX;
- 868   4              buffer_ticket[1]='0';
- 869   4              buffer_ticket[2]=0X06;
- 870   4              buffer_ticket[3]='S';
- 871   4              buffer_ticket[4]='1';
- 872   4              buffer_ticket[5]=ETX;
- 873   4              Send_Port(6);
- 874   4       
- 875   4            }
- 876   3            
- 877   3            sel_Sensor2();
- 878   3            if ((DataIn==1)&&(NotifyCofreB2B==0)&&(AlarmaPrevia2==0))
- 879   3            {
- 880   4              NotifyCofreB2B=1;
- 881   4      
- 882   4              buffer_ticket[0]=STX;
- 883   4              buffer_ticket[1]='0';
- 884   4              buffer_ticket[2]=0X06;
- 885   4              buffer_ticket[3]='S';
- 886   4              buffer_ticket[4]='2';
- 887   4              buffer_ticket[5]=ETX;
- 888   4              Send_Port(6);
- 889   4            }           
- 890   3      
- 891   3            sel_Pulsa();
- 892   3            if ((DataIn==1)&&(NotifyCofreCoin==0)&&(AlarmaPrevia3==0))
- 893   3            {
- 894   4              NotifyCofreCoin=1;
- 895   4      
- 896   4              buffer_ticket[0]=STX;
- 897   4              buffer_ticket[1]='0';
- 898   4              buffer_ticket[2]=0X06;
- 899   4              buffer_ticket[3]='S';
- 900   4              buffer_ticket[4]='3';
- 901   4              buffer_ticket[5]=ETX;
- 902   4              Send_Port(6);
- 903   4            }
- 904   3      
- 905   3            }
- 906   2      /////////////////////////////////////////////////////////////////////////////////////////////
- 907   2      //------------------------------------------------------------------------------------------*
- 908   2      //    if(TF2==1)
- 909   2      //    {
- 910   2      //      TF2=0;
- 911   2      //        seg2--;
-C51 COMPILER V9.59.0.0   CREATOR                                                           03/02/2020 12:27:55 PAGE 16  
+ 850   2          {
+ 851   3            lock=0;
+ 852   3            onceAlarm=0;
+ 853   3            alarma1=0;
+ 854   3            alarma2=0;
+ 855   3            alarma3=0;
+ 856   3          }
+ 857   2        
+ 858   2      //*******************************************************************************************
+ 859   2      //    Notificacion de Aperturas en Desarmado
+ 860   2      //*******************************************************************************************
+ 861   2          if ((Desarmado==1))
+ 862   2          {
+ 863   3            sel_Sensor1();
+ 864   3            if ((DataIn==1)&&(NotifyPuerta==0)&&(AlarmaPrevia1==0))
+ 865   3            {
+ 866   4              NotifyPuerta=1;
+ 867   4      
+ 868   4              buffer_ticket[0]=STX;
+ 869   4              buffer_ticket[1]='0';
+ 870   4              buffer_ticket[2]=0X06;
+ 871   4              buffer_ticket[3]='S';
+ 872   4              buffer_ticket[4]='1';
+ 873   4              buffer_ticket[5]=ETX;
+ 874   4              Send_Port(6);
+ 875   4       
+ 876   4            }
+ 877   3            
+ 878   3            sel_Sensor2();
+ 879   3            if ((DataIn==1)&&(NotifyCofreB2B==0)&&(AlarmaPrevia2==0))
+ 880   3            {
+ 881   4              NotifyCofreB2B=1;
+ 882   4      
+ 883   4              buffer_ticket[0]=STX;
+ 884   4              buffer_ticket[1]='0';
+ 885   4              buffer_ticket[2]=0X06;
+ 886   4              buffer_ticket[3]='S';
+ 887   4              buffer_ticket[4]='2';
+ 888   4              buffer_ticket[5]=ETX;
+ 889   4              Send_Port(6);
+ 890   4            }           
+ 891   3      
+ 892   3            sel_Pulsa();
+ 893   3            if ((DataIn==1)&&(NotifyCofreCoin==0)&&(AlarmaPrevia3==0))
+ 894   3            {
+ 895   4              NotifyCofreCoin=1;
+ 896   4      
+ 897   4              buffer_ticket[0]=STX;
+ 898   4              buffer_ticket[1]='0';
+ 899   4              buffer_ticket[2]=0X06;
+ 900   4              buffer_ticket[3]='S';
+ 901   4              buffer_ticket[4]='3';
+ 902   4              buffer_ticket[5]=ETX;
+ 903   4              Send_Port(6);
+ 904   4            }
+ 905   3      
+ 906   3            }
+ 907   2      /////////////////////////////////////////////////////////////////////////////////////////////
+ 908   2      //------------------------------------------------------------------------------------------*
+ 909   2      //    if(TF2==1)
+ 910   2      //    {
+ 911   2      //      TF2=0;
+C51 COMPILER V9.59.0.0   CREATOR                                                           11/25/2021 12:37:16 PAGE 16  
 
- 912   2      //      if (seg2==0)
- 913   2      //      {
- 914   2      //        seg2=CTE_SEG;
- 915   2      //      }
- 916   2      //    }
- 917   2      //------------------------------------------------------------------------------------------*
- 918   2          }                       //Cierra While Principal        * 
- 919   1      }                         //Cierra main             *
- 920          //*******************************************************************************************
- 921          
+ 912   2      //        seg2--;
+ 913   2      //      if (seg2==0)
+ 914   2      //      {
+ 915   2      //        seg2=CTE_SEG;
+ 916   2      //      }
+ 917   2      //    }
+ 918   2      //------------------------------------------------------------------------------------------*
+ 919   2          }                       //Cierra While Principal        * 
+ 920   1      }                         //Cierra main             *
+ 921          //*******************************************************************************************
+ 922          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   2072    ----
+   CODE SIZE        =   2063    ----
    CONSTANT SIZE    =     35    ----
    XDATA SIZE       =    305       5
    PDATA SIZE       =   ----    ----

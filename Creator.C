@@ -497,8 +497,9 @@ void main (void)
 		P2=0xff;
 		cod_alarm=P2;
 		txd2=1;
-		if(esQR==1){sel_com=PuertoMF;}
-		else{	sel_com=PuertoDB9;}			//PuertoMF;
+		sel_com=PuertoDB9;
+	//	if(esQR==1){sel_com=PuertoMF;}
+//		else{	sel_com=PuertoDB9;}			//PuertoMF;
 //------------------------------------------------------------------------------------------*
 		ProcesoLector();
 //------------------------------------------------------------------------------------------*	

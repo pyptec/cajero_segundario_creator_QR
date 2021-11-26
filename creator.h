@@ -172,7 +172,7 @@ sbit ready = P3^2;					//Salida. solicitud envio Datos							*
 #define SECTOR 0X01
 
 
-#define 	RBUF_SIZE   				128
+//#define 	RBUF_SIZE   				128
 
 
 
@@ -180,8 +180,8 @@ sbit ready = P3^2;					//Salida. solicitud envio Datos							*
 // 	01: Central Parking
 //
 //-------------------------------------------------------------------------------------------*
-const unsigned char ID_CLIENTE=	3;		//					
-const unsigned char  COD_PARK=	8	;	//					
+const unsigned char ID_CLIENTE=	0;		//					
+const unsigned char  COD_PARK=	0	;	//					
 //-------------------------------------------------------------------------------------------*
 
 //-------------------------------------------------------------------------------------------*
@@ -263,7 +263,7 @@ unsigned char g_scArrRxComSoft[TAMANO_RX_COM_SOFT];
  bit PrintLPR=0;
  bit TxENQ=0;
  bit Comparacion=0;
- bit esQR=0;
+ bit esQR=0;															//puerto de creator en 0 y pto de qr 1
 
  const bit PuertoMF=0;
  const bit PuertoDB9=1;

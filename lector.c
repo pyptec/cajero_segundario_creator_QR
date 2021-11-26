@@ -61,6 +61,7 @@ sbit sel_com = P0^7;				//Micro switch
 #define SEQ_QR_INICIO					0x3b	
 #define SEQ_QR_PTPRL					0x3c
 #define SEQ_QR_WCMD						0x3d
+#define SEQ_RECARGA_PASSWORD	0x3e
 
 
 //ESTADOR RECEPCION SOFTWARE
@@ -264,10 +265,10 @@ void ProcesoLector(void)
  
  		unsigned char j;
 		unsigned char temp,temp2;
-	unsigned char *tipo_vehiculo;
+		unsigned char *tipo_vehiculo;
 		static unsigned char BID1=0,BID2=0,BID3=0,BID4=0,vehiculo,contador_QR=0;
 		static unsigned char Ticket[10];
-	static unsigned char  fecha[17]; 
+		static unsigned char  fecha[17]; 
  		switch (g_cEstadoComSeqMF)
 		{
 //------------------------------------------------------------------------------------------------------------------------------*
@@ -299,21 +300,22 @@ void ProcesoLector(void)
 					if (g_scArrRxComSoft[5]=='Y')												/*tenemos presencia de tarjeta en la antena*/
 					{
 						Debug_txt_Tibbo((unsigned char *) "TARJETA LOCK\r\n");
-						Select_Card();																		/*consulto el numero de la serie de la tarjeta*/
+						/*consulto el numero de la serie de la tarjeta*/
+						Select_Card();																		
 						g_cEstadoComSeqMF=SEQ_RTA_SELECT;
 						Debug_txt_Tibbo(g_scArrRxComSoft);
 					}
 					else
 					{
-						//g_cEstadoComSeqMF=SEQ_ESPERA;											/*no hay tarjeta probamos si hay QR*/
-						//g_cEstadoComSoft=ESPERA_RX;
-						//	ValTimeOutCom=T_WAIT;
-						Debug_txt_Tibbo(g_scArrRxComSoft);					
+						g_cEstadoComSeqMF=SEQ_ESPERA;											/*no hay tarjeta probamos si hay QR*/
+						g_cEstadoComSoft=ESPERA_RX;
+							ValTimeOutCom=T_WAIT;
+						/*Debug_txt_Tibbo(g_scArrRxComSoft);					
 						sel_com=PuertoMF;	
 						esQR=	1;					
 						g_cEstadoComSeqMF=SEQ_QR_WAIT;											/*no hay tarjeta probamos si hay QR*/
-						g_cEstadoComSoft=RX_QR;
-						ValTimeOutCom=T_WAIT;																	/*TIME_RX;*/
+						//g_cEstadoComSoft=RX_QR;
+						//ValTimeOutCom=T_WAIT;																	/*TIME_RX;*/
 					}
  				}
 				else if (ValTimeOutCom==1)
@@ -485,6 +487,7 @@ void ProcesoLector(void)
 							tx_auxH(COD_PARK);
 							Debug_txt_Tibbo((unsigned char *) "\r\n");
 							Debug_Dividir_texto()	;	
+						Debug_txt_Tibbo((unsigned char *) "SECTOR1_BLOQUE1: ");	
 						for (j=0; j<16; j++)									  // GUARDO SECTOR 5 (STATUS CARD, COD PARK. ID PÁRK, FECHA VENCINIENTO MENSUAL)
 						{
 							sector5[j]=g_scArrRxComSoft[8+j];
@@ -727,9 +730,9 @@ void ProcesoLector(void)
 					buffer_ready=0;
 				  	if (g_scArrRxComSoft[7]=='Y')								/*lectura ok del 2 bloque de la memoria MF50*/
 					{
-						Debug_txt_Tibbo((unsigned char *) "RD S6:");
+						Debug_txt_Tibbo((unsigned char *) "SEQ_RTA_rdB6\r\n");
 						
-						
+						Debug_txt_Tibbo((unsigned char *) "SECTOR1_BLOQUE2: ");
 						for (j=0; j<16; j++)
 						{
 							sector6[j]=g_scArrRxComSoft[8+j];
@@ -945,10 +948,17 @@ void ProcesoLector(void)
 
 				if ((buffer_ready==1)||(ValTimeOutCom==1))
 				{
-
+						
 					if (g_scArrRxComSoft[7]=='Y')
 					{
-
+						Debug_txt_Tibbo((unsigned char *) "SECTOR1_BLOQUE0: ");
+						//for (j=0; j<16; j++)
+						//{
+						//	tx_auxH(g_scArrRxComSoft[8+j]);				// Envia sector 6 leido
+					//	}
+					//	tx_aux(CR);
+					//	tx_aux(LF);		
+						
 						for (j=0; j<16; j++)
 						{
 							buffer_ticket[j+11]=g_scArrRxComSoft[8+j];
@@ -988,7 +998,7 @@ void ProcesoLector(void)
 
 				if ((buffer_ready==1)||(TipoCard==CARD_MENSUALIDAD))
 				{
-					Debug_txt_Tibbo((unsigned char *) "LEYENDO B4\r\n");
+					Debug_txt_Tibbo((unsigned char *) "SEQ_RTA_rdB4\n");
 					
 					if ((g_scArrRxComSoft[7]=='Y')||(TipoCard==CARD_MENSUALIDAD))		/*lectura del bloque 0 ok*/
 					{
@@ -1003,6 +1013,7 @@ void ProcesoLector(void)
 
 						if ((TipoCard==CARD_MENSUALIDAD)||(TipoCard==CARD_LOCATARIO))
 						{
+							/*COVIERTE ID A DECIMAL*/
 							ve_id(ID2,ID1);
  						}
 						else
@@ -1401,6 +1412,7 @@ void ProcesoLector(void)
 //-------------------------------------------------------------------------------------------*
 							Debug_txt_Tibbo((unsigned char *) "\r\nPC: comunicacion pto paralelo eject con fecha out\r\n");
 							Debug_Dividir_texto();
+							/*trama pto paralelo a tcp debuger*/
 							for (j=0; j<num_data; j++)
 							{
 								tx_aux(buffer_ticket[j]);	
@@ -1438,6 +1450,7 @@ void ProcesoLector(void)
 //--------------------------------------------------------------------------------------------------
 								Debug_txt_Tibbo((unsigned char *) "\r\nDatos MF \r\n");						
 								Debug_Dividir_texto();
+								/*informacion de la tarjeta mf50*/
 								for (j=0; j<16; j++)
 								{
 								 	BufferWrite_MF[j]=sector6[j];
@@ -1464,8 +1477,9 @@ void ProcesoLector(void)
 								else
 								{
 																
-									Debug_txt_Tibbo((unsigned char *) "\r\nWR_MF SEQ_RTA_WR_2 MDFC_STD_PRDD_A_RTCN: \r\n");
+									Debug_txt_Tibbo((unsigned char *) "\r\nWR_MF SEQ_RTA_STATUS_WR_B6_PeRdiDa_RTCN: \r\n");
 									sector5[0]=01;													/*modifica el estado de perdida a rotacion*/										
+									/*se muestra bloque1 sector1 informacion*/
 									for (j=0; j<16; j++)
 									{
 								 	BufferWrite_MF[j]=sector5[j];
@@ -1482,10 +1496,12 @@ void ProcesoLector(void)
 									
 									TIME_ESPERA=0;
 									Block=1;
+									/*graba la informacion del tipo de tarjeta sector1_bloque 1*/
 									//Graba_S1_BloqueSel(Block);
+									/*para saber si esta la tarjeta*/
 								  Get_Status();
 								  buffer_ready=0;
-									g_cEstadoComSeqMF=SEQ_RTA_STATUS_WR_B7;     //SEQ_RTA_WR_2;
+									g_cEstadoComSeqMF=SEQ_RECARGA_PASSWORD;    //SEQ_RTA_STATUS_WR_B7;     //SEQ_RTA_WR_2;
 									break;
 								}
 												/**/
@@ -1698,6 +1714,7 @@ void ProcesoLector(void)
 						buffer_ready=0;
 						if (g_scArrRxComSoft[5]=='Y')			
 						{
+						  	
    						Expulsa_Grabacion=1;							
 							RetryWR=4;									// Numero de RE-Intentos 
 							Block=1;
@@ -1732,6 +1749,7 @@ void ProcesoLector(void)
 						buffer_ready=0;
 						if (g_scArrRxComSoft[5]=='Y')			
 						{
+							Debug_txt_Tibbo((unsigned char *) "GRABACION DE FECHA maxima de salida");	
    						Expulsa_Grabacion=1;							
 							RetryWR=4;									// Numero de RE-Intentos 
 							LoadPass();									// Sector 1 (bloque 2 = Block(6)) >> FECHA MAX DE SALIDA
@@ -1770,9 +1788,10 @@ void ProcesoLector(void)
 						buffer_ready=0;
 						if (g_scArrRxComSoft[5]=='Y')			
 						{
-   						Debug_txt_Tibbo((unsigned char *) "cmd ok SEQ_RTA_STATUS_WR_B7\r\n");					
+   						Debug_txt_Tibbo((unsigned char *) "Graba tipo de tarjeta perdida por rotacion\r\n");					
 							RetryWR=4;									// Numero de RE-Intentos 
 							Block=1;
+							/*se graba tipo de tarjeta*/
 							Graba_S1_BloqueSel(Block);					// B5  //Sector 1 bloque 1 = Block(5) >> FECHA VENCIMIENTO
 							ValTimeOutCom=TIMWPoll;
 							g_cEstadoComSeqMF=SEQ_RTA_WR_2;						
@@ -1924,6 +1943,7 @@ void ProcesoLector(void)
 					else
 					{
 						Block=2;
+						/*MSJ*/
 						ErrorWR(SELECCION_SECTOR);
 						g_cEstadoComSeqMF=SEQ_RETRY;						
 					}
@@ -2078,6 +2098,7 @@ void ProcesoLector(void)
 					if ((buffer_ready==1)&&(g_scArrRxComSoft[7]=='N'))
 					{
 						buffer_ready=0;
+						/*error de escritura mf50*/
 						ErrorWR(COMANDO_WR);
 					}
 					else if (buffer_ready==0)
@@ -2098,6 +2119,7 @@ void ProcesoLector(void)
 			{
 				if (RetryWR!=0)
 				{
+					/*MSJ*/
 			 		Info_Retry();
 				}
 				buffer_ready=0;
@@ -2287,6 +2309,7 @@ almaceno el numero del Id leido y lo comparo con el anterior
 				}
 				else
 				{
+					/*error clave no la recibe*/
 					Debug_txt_Tibbo((unsigned char *) "ERRR KER\r\n");		
 				
 					g_cEstadoComSeqMF=SEQ_RETRY_KEY_2;
@@ -2660,6 +2683,37 @@ almaceno el numero del Id leido y lo comparo con el anterior
 			}
 		}
 					break;
+		
+			case SEQ_RECARGA_PASSWORD:
+
+				if ((ValTimeOutCom==1)||(buffer_ready==1))
+				{
+					if ((buffer_ready==1))
+					{
+						buffer_ready=0;
+						if (g_scArrRxComSoft[5]=='Y')			
+						{
+							Debug_txt_Tibbo((unsigned char *) "RECARGA EL PASSWORD\n");	
+   						Expulsa_Grabacion=1;							
+							RetryWR=4;									// Numero de RE-Intentos 
+							LoadPass();
+							/*SE REESCRIBE EL SECTOR1 Y BLOQUE 1*/ 
+							g_cEstadoComSeqMF=SEQ_RTA_STATUS_WR_B7;
+						}
+						else
+						{
+							ErrorWR(NO_CARD);
+							Eject_Card(ERR_NO_CARD);
+							RetryWR=0;			
+  						}
+					}
+					else
+					{
+						ErrorWR(NO_RTA_WR);
+						Eject_Card(ERR_WR);
+						RetryWR=0;
+ 					}
+				 }
 
  			
 			
